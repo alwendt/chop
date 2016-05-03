@@ -1,0 +1,75 @@
+Script started on Tue 03 May 2016 01:47:33 AM MST
+]0;alan@alan-HP-Compaq-8000-Elite-SFF-PC: ~/git/chop/chop0alan@alan-HP-Compaq-8000-Elite-SFF-PC:~/git/chop/chop0$ make
+gcc -c -g  -DMAXKIDS=6 -DMAXSYMS=6 -DLEARNING=1 -DDEBUG=0 -DCHOPEMIT=1 -I../chop -I../c -I../vax ../chop/hash.c
+In file included from ../c/c.h:121:0,
+                 from ../chop/hash.c:14:
+../vax/config.h:16:0: warning: "LITTLE_ENDIAN" redefined [enabled by default]
+ #define LITTLE_ENDIAN  /* right-to-left bit fields */
+ ^
+In file included from /usr/include/ctype.h:39:0,
+                 from ../chop/hash.c:12:
+/usr/include/endian.h:45:0: note: this is the location of the previous definition
+ # define LITTLE_ENDIAN __LITTLE_ENDIAN
+ ^
+In file included from ../chop/hash.c:14:0:
+../c/c.h:663:21: warning: conflicting types for built-in function ‘strncmp’ [enabled by default]
+ dclproto(extern int strncmp,(const char *, const char *, unsigned int))
+                     ^
+../c/c.h:40:29: note: in definition of macro ‘dclproto’
+ #define dclproto(func,args) func args;
+                             ^
+../c/c.h:664:23: warning: conflicting types for built-in function ‘strncpy’ [enabled by default]
+ dclproto(extern char *strncpy,(char *, const char *, unsigned int))
+                       ^
+../c/c.h:40:29: note: in definition of macro ‘dclproto’
+ #define dclproto(func,args) func args;
+                             ^
+In file included from ../chop/hash.c:15:0:
+../chop/hop2.h:452:7: warning: extra tokens at end of #else directive [enabled by default]
+ #else !LEARNING
+       ^
+../chop/hash.c:94:7: error: conflicting types for ‘calloc’
+ char *calloc();
+       ^
+../chop/hash.c:97:7: error: conflicting types for ‘balloc’
+ char *balloc(n) unsigned n; {
+       ^
+In file included from ../chop/hash.c:15:0:
+../chop/hop2.h:20:7: note: previous declaration of ‘balloc’ was here
+ void *balloc(), *bmalloc(), *buybuf(), *calloc(), *sbrk();
+       ^
+../chop/hash.c:118:7: error: conflicting types for ‘bmalloc’
+ char *bmalloc(n) unsigned n; {
+       ^
+In file included from ../chop/hash.c:15:0:
+../chop/hop2.h:20:18: note: previous declaration of ‘bmalloc’ was here
+ void *balloc(), *bmalloc(), *buybuf(), *calloc(), *sbrk();
+                  ^
+../chop/hash.c: In function ‘bmalloc’:
+../chop/hash.c:122:18: error: conflicting types for ‘malloc’
+     extern char *malloc();
+                  ^
+../chop/hash.c: In function ‘strtol’:
+../chop/hash.c:208:8: warning: assignment discards ‘const’ qualifier from pointer target type [enabled by default]
+   *ptr = str;
+        ^
+../chop/hash.c:223:9: warning: assignment discards ‘const’ qualifier from pointer target type [enabled by default]
+  for (s = str; *str; str++) {
+         ^
+../chop/hash.c:239:8: warning: assignment discards ‘const’ qualifier from pointer target type [enabled by default]
+   *ptr = str;
+        ^
+../chop/hash.c: At top level:
+../chop/hash.c:249:1: warning: conflicting types for built-in function ‘memmove’ [enabled by default]
+ memmove(destination, source, length)
+ ^
+../chop/hash.c: In function ‘memmove’:
+../chop/hash.c:263:6: warning: cast from pointer to integer of different size [-Wpointer-to-int-cast]
+  if ((int)destination < (int)source)
+      ^
+../chop/hash.c:263:25: warning: cast from pointer to integer of different size [-Wpointer-to-int-cast]
+  if ((int)destination < (int)source)
+                         ^
+make: *** [hash.o] Error 1
+]0;alan@alan-HP-Compaq-8000-Elite-SFF-PC: ~/git/chop/chop0alan@alan-HP-Compaq-8000-Elite-SFF-PC:~/git/chop/chop0$ exit
+Script done on Tue 03 May 2016 01:47:36 AM MST

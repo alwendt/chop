@@ -17,8 +17,8 @@
 #define unsign16 unsigned short
 #define unsign32 unsigned
 
-char *balloc(), *bmalloc(), *buybuf(), *calloc(), *sbrk();
-char *malloc();
+void *balloc(), *bmalloc(), *buybuf(), *calloc(), *sbrk();
+void *malloc();
 #define cerror compilererror
 #include "special.h"
 

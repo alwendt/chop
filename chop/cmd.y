@@ -2277,7 +2277,7 @@ static void addstate(name, set, new)
     {
     register struct State *s;
     register int    i;
-    register unsigned hix;
+    register unsigned long hix;
     char            bf[MAXREQLEN];
 #if trace_addstate
     printf("\n/* %s adds new state ", name);
@@ -2292,15 +2292,15 @@ static void addstate(name, set, new)
 	}
 
     /* Why are these what is used in the hash??? */
-    hix = (unsigned) new.pn + (unsigned) new.dot +
-	   (unsigned) new.vk.kid + (unsigned) new.left
-	   + (unsigned) new.constraints[0]
-	   + (unsigned) new.constraints[1]
-	   + (unsigned) new.constraints[2]
-	   + (unsigned) new.constraints[3]
-	   + (unsigned) new.constraints[4]
-	   + (unsigned) new.constraints[5]
-	   + (unsigned) new.constraints[6]
+    hix = (unsigned long) new.pn + (unsigned long) new.dot +
+	   (unsigned long) new.vk.kid + (unsigned long) new.left
+	   + (unsigned long) new.constraints[0]
+	   + (unsigned long) new.constraints[1]
+	   + (unsigned long) new.constraints[2]
+	   + (unsigned long) new.constraints[3]
+	   + (unsigned long) new.constraints[4]
+	   + (unsigned long) new.constraints[5]
+	   + (unsigned long) new.constraints[6]
 	   ;
 #if trace_addstate
     printf("hix %d\n", hix);
