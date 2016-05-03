@@ -1,0 +1,113 @@
+\begin{thebibliography}{10}
+
+\bibitem{aho:sethi:ullman:86}
+A.~V. Aho, R.~Sethi, and J.~D. Ullman.
+\newblock {\em Compilers: Principles, Techniques, and Tools}.
+\newblock Addison Wesley, Reading, MA, 1986.
+
+\bibitem{ansi:Cstandard}
+American National Standard Institute, Inc., New York.
+\newblock {\em American National Standards for Information Systems, Programming
+  Language C {ANSI} X3.159--1989}, 1990.
+
+\bibitem{baskett78}
+F.~Baskett.
+\newblock The best simple code generation technique for while, for, and do
+  loops.
+\newblock {\em SIGPLAN Notices}, 13(4):31--32, Apr. 1978.
+
+\bibitem{bentley82}
+J.~L. Bentley.
+\newblock {\em Writing Efficient Programs}.
+\newblock Prentice Hall, Englewood Cliffs, NJ, 1982.
+
+\bibitem{bernstein85}
+R.~L. Bernstein.
+\newblock Producing good code for the case statement.
+\newblock {\em Software---Practice \& Experience}, 15(10):1021--1024, Oct.
+  1985.
+
+\bibitem{bsd84}
+Computer Science Division, Department of Electrical Engineering and Computer
+  Science, University of California, Berkeley, CA.
+\newblock {\em UNIX User's Manual, Reference Guide}, virtual {VAX}-11 version
+  edition, Mar. 1984.
+
+\bibitem{fraser:sigplan89}
+C.~W. Fraser.
+\newblock A language for writing code generators.
+\newblock {\em Proceedings of the SIGPLAN '89 Conference on Programming
+  Language Design and Implementation, SIGPLAN Notices}, 24(7):238--245, July
+  1989.
+
+\bibitem{fraser:hanson:91a}
+C.~W. Fraser and D.~R. Hanson.
+\newblock A code generation interface for {ANSI} {C}.
+\newblock {\em Software---Practice \& Experience}, 21(9):963--988, Sept. 1991.
+
+\bibitem{fraser:hanson:92}
+C.~W. Fraser and D.~R. Hanson.
+\newblock Simple register spilling in a retargetable compiler.
+\newblock {\em Software---Practice \& Experience}, 22(1):85--99, Jan. 1992.
+
+\bibitem{graham:kessler:mckusick:83}
+S.~L. Graham, P.~B. Kessler, and M.~K. McKusick.
+\newblock An execution profiler for modular programs.
+\newblock {\em Software---Practice \& Experience}, 13(8):671--685, Aug. 1983.
+
+\bibitem{griswold:griswold:90}
+R.~E. Griswold and M.~T. Griswold.
+\newblock {\em The Icon Programming Language}.
+\newblock Prentice Hall, Englewood Cliffs, NJ, second edition, 1990.
+
+\bibitem{hanson83}
+D.~R. Hanson.
+\newblock Simple code optimizations.
+\newblock {\em Software---Practice \& Experience}, 13(8):745--763, Aug. 1983.
+
+\bibitem{hanson90}
+D.~R. Hanson.
+\newblock Fast allocation and deallocation of memory based on object lifetimes.
+\newblock {\em Software---Practice \& Experience}, 20(1):5--12, Jan. 1990.
+
+\bibitem{kernighan:ritchie:88}
+B.~W. Kernighan and D.~M. Ritchie.
+\newblock {\em The C Programming Language}.
+\newblock Prentice Hall, Englewood Cliffs, NJ, second edition, 1988.
+
+\bibitem{knuth71}
+D.~E. Knuth.
+\newblock An empirical study of {FORTRAN} programs.
+\newblock {\em Software---Practice \& Experience}, 1(2):105--133, Apr. 1971.
+
+\bibitem{sedgewick88}
+R.~Sedgewick.
+\newblock {\em Algorithms}.
+\newblock Addison Wesley, Reading, MA, 1988.
+
+\bibitem{sites78}
+R.~L. Sites.
+\newblock Programming tools: Statement counts and procedure timings.
+\newblock {\em SIGPLAN Notices}, 13(12):98--101, Dec. 1978.
+
+\bibitem{spec89}
+Standards Performance Evaluation Corp.
+\newblock {\em {SPEC} Benchmark Suite Release 1.0}, Oct. 1989.
+
+\bibitem{thompson90}
+K.~Thompson.
+\newblock A new {C} compiler.
+\newblock In {\em Proceedings of the Summer 1990 UKUUG Conference}, pages
+  41--51, London, July 1990.
+
+\bibitem{waite86}
+W.~M. Waite.
+\newblock The cost of lexical analysis.
+\newblock {\em Software---Practice \& Experience}, 16(5):473--488, May 1986.
+
+\bibitem{weinberger84}
+P.~J. Weinberger.
+\newblock Cheap dynamic instruction counting.
+\newblock {\em Bell System Technical Journal}, 63(8):1815--1826, Oct. 1984.
+
+\end{thebibliography}

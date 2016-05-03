@@ -1,0 +1,47 @@
+#   You have this code because you wanted it now rather than correct.
+#   Bugs abound!  Contact Alan Wendt for a later version or to be
+#   placed on the chop mailing list.  Parts are missing due to licensing
+#   constraints.
+#
+#   Alan Wendt / Computer Science Department
+#   Colorado State Univ.
+#   Fort Collins, Colorado 80521
+#   303-491-7323 / wendt@cs.colostate.edu
+
+#   sort and unique rules
+#   This filters out duplicate rules and sorts them in inverse order of
+#   frequency of duplicates.
+
+procedure main()
+    local rule, rules, lin, rulenumber
+
+    rulenumber := 1
+    rule := ""
+    rules := table()
+    rulecounts := table(0)
+
+    repeat {
+	lin := &null
+	if lin := read() & *lin > 0 then {
+	    if *rule > 0 then rule := rule || "\n"
+	    rule := rule || lin
+	    }
+	else if *rule > 0 then {
+	    uniquerule := rule
+	    header := "#"
+	    if match("#", rule) then {
+		uniquerule := rule[upto('\n', rule) + 1:0]
+		header := rule[1 : upto('\n', rule)]
+		}
+
+	    rules[uniquerule] := header 
+	    rulecounts[uniquerule] -:= 1
+	    rule := ""
+	    }
+	if /lin then break
+	}
+
+    every r := !sort(rulecounts, 2) do {
+	write(rules[r[1]], " dups ", -r[2], "\n", r[1], "\n")
+	}
+    end

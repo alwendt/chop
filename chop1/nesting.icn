@@ -1,0 +1,1059 @@
+#   Copyright (c) 1991 Alan Wendt.  All rights reserved.
+#
+#   You have this code because you wanted it now rather than correct.
+#   Bugs abound!  Contact Alan Wendt for a later version or to be
+#   placed on the chop mailing list.  Parts are missing due to licensing
+#   constraints.
+#
+#   Alan Wendt / Computer Science / Colorado State Univ. / Ft Collins CO 80523
+#   303-491-7323.  wendt@cs.colostate.edu
+
+#	Nest conditionals.
+#
+#	Turn if (a&&b&&c) {} if (a&&d&&e) {} {} into
+#	     if (a) {if (b&&c) {} if (d&&e) {}} {}
+#
+#	Also makes switches for lots of comparisons of the same thing
+#	to integer constants.
+
+#	A "term" is something like "INSOP(IKID(r,3))==43"
+#	A "clause" is a list of terms, which are assumed to be &&'ed together
+#	An "optimization rule" consists of a clause and some code
+#
+#	This code is very dependent upon the format of the input opt1.nonest.
+#       general format of input code:
+#
+#       if (stuff			
+#           more stuff
+#           more stuff) {
+#       code stuff
+#       code stuff
+#       }
+# 
+#       It keys on the "if (" and the curly braces alone on lines.
+#
+#
+#       Also performs a number of pattern-matched optimizations such as:
+#
+#       IKID(b,6)->count++;
+#       if (--b->count == 0) {
+#           IKID(b,6)->count--;
+#           }
+#       =>
+#       if (--b->count)
+#           IKID(b,6)->count++
+
+global clauses		# a list of lists of conditions
+global code		# a list of lines of code
+global indeces		# opt #; used to stabilize sort of optimizations
+global l		# current line
+global lineno		# current input line number
+global lastout		# last output line
+global assems		# translate numbers to assem strings
+global referenced	# table of referenced goto labels
+global nnl		# not a newline
+
+global lcurl, rcurl     # "{" and "}" so as not to break vi-matching
+#
+#  code text, fragment number, list of fragments with same suffix,
+#  length of common suffix
+#
+record fragment(code,number,len,brothers)
+
+global buffer
+global line_buffer
+
+#   This stuff parses the input program till it gets an if.  It is very
+#   dependent on the format of the input!
+procedure main()
+    local	k
+
+    initial nnl := ~'\n'		# complement cset once to save time
+
+    lineno := 0
+    assems := table("")
+    referenced := table()
+    lcurl := "{"
+    rcurl := "}"
+    getline()
+    repeat {
+	if \l & l ? (k := iscase()) then {
+	    save_text(l || "\t" || assems[k])
+	    getline()
+	    if (l ? (tab(many('\t ') | &pos) & = "if (DEBUG)")) then getline()
+	    eatifs()
+	    next
+	    }
+
+	if  \l & l ? (tab(many('\t ') | &pos) & ="b =") then {
+	    eatifs()
+	    next
+	    }
+
+	if \l then save_text(l)
+	if not getline() then {
+		break
+		}
+	}
+
+    branch_chain()
+    dump_text()
+
+    write(line_buffer)
+    line_buffer := ""
+    while write(read())
+
+    referenced := sort(referenced, 1)
+
+    write("/* labels referenced: ")
+    every k := (!referenced)[1] do {
+	write("     ", k)
+	}
+    write(" */")
+    end
+
+procedure dumpclause(from,top)
+    local i, j
+    every i := from to top - 1 do {
+	write("clause ", i)
+	every write(!clauses[i], " &&\n")
+	}
+    write("\n\n")
+    end
+
+#   eat up to next "b =", case, or end of program
+procedure eatifs()
+
+    local level, k
+
+    if l ? (tab(many('\t ') | &pos) & ="b =") then {		# if abbrev
+	save_text(l)					# write it out
+	getline()
+	}
+
+    ifno := 0			# number of ifs so far
+    clauses := []
+    code := []
+    indeces := []
+    repeat {
+	if l ? (tab(many('\t ') | &pos) & ="if (" & (k := &pos)) then {	# if?
+	    ifno +:= 1
+	    pushterm(ifno, l[k:0])		# first term in conditional
+	    getline()
+	    repeat {
+		if l ? (tab(many('\t ')  | &pos) & =lcurl  & pos(0)) then {
+		    # remove trailing right parens and blanks
+		    clauses[ifno][*clauses[ifno]][-1:0] := ""
+		    clauses[ifno][*clauses[ifno]] :=
+			trim(clauses[ifno][*clauses[ifno]], '\t ')
+#		    writes("clauses[", ifno, "][", *clauses[ifno], "] = '")
+#		    write(clauses[ifno][*clauses[ifno]], "'")
+		    level := 1			# 1 level of {} nesting
+		    break
+		    }
+#		write("call pushterm ifno ", ifno, " l '", l, "'")
+		pushterm(ifno, l[4:0])
+		getline()
+		}
+
+	    getline()
+
+	    repeat {
+		if l[-1] == lcurl then
+		    level +:= 1
+
+		if l ? (tab(many('\t ') | &pos) & = rcurl  & &pos = *l + 1) then {
+		    if (level -:= 1) = 0 then break
+		    }
+		pushthen(ifno, l)		# push code lines
+		getline()
+		}
+	    if not getline() then break
+	    }
+
+	else {			# parse if-less consequence
+	    ifno +:= 1
+	    while not (l ? (tab(many('\t ') | &pos) &
+		    (="case" | ="default" | ="b =" ))) do {
+		pushthen(ifno, l)
+		if l ? (tab(many('\t ') | &pos) & (="goto" | ="return")) then {
+		    getline()
+		    break
+		    }
+		if not getline() then break
+		}
+	    break
+	    }
+	}
+
+    every i := 1 to *clauses do {
+	code[i] := optimize(code[i])
+	}
+
+    test(0, 1, *clauses + 1)
+    save_text("")
+    end
+
+#   add a term (something like "INSOP(r,1)==43") onto the current clause
+procedure pushterm(ifno, s)
+    if *clauses < ifno then {
+	put(clauses, [])		# append empty list to the list of lists
+	put(indeces, ifno)		# keep track of starting index
+	}
+    put(clauses[ifno], s)
+    end
+
+#   add a line of code onto the then-part of the current clause
+procedure pushthen(ifno, s)
+    if *clauses < ifno then {
+	put(clauses, [])
+	put(indeces, ifno)
+	}
+    if *code < ifno then put(code, "")
+    if s[1] == "\t" then s := s[2:0]
+    code[ifno] := code[ifno] || s || "\n"
+    end
+
+#   generate ifs and thens for a set of clauses between first and bound
+#   The value for minswitch is empirical, see trysw macro.
+procedure test(iflev, first, bound)
+    local	x, l, i, minswitch
+    local       s, t, u, v
+    local	output
+
+    minswitch := 3		# minimum number of if's to opt into a switch
+
+    while (first < bound) do {
+	if *clauses[first] = 0 then {		# no tests to do
+	    save_text(code[first])	# emit de-conditioned code
+	    first +:= 1				# one more if done
+	    }
+	else {
+	    #	if we've got lots of comparisons of the same thing to
+	    #	constants, use a switch.
+	    m := -1
+	    x := maxswitch(first, bound)
+
+	    if \x then {
+		l := switchlen(first, bound, x)
+		m := normswitch(first, first + l, x)
+		}
+
+	    if (m >= minswitch) then {
+		save_text("switch (" || x || ") " || lcurl)
+		genswitch(iflev, x, first, first + l)
+		}
+	    else {
+		x := maxif(first, bound)	# get big repeated term
+		l := iflen(first, bound, x)	# its length
+		rmif(first, first + l, x)	# remove it
+		output := "if (" || x
+
+		#	do a && b if b's range is same as a's
+		while *clauses[first] ~= 0 &
+		    y := maxif(first, first + l) &
+		    m := iflen(first, first + l, y) & m = l do {
+		    output ||:= " &&\n" || y
+		    rmif(first, first + m, y)
+		    }
+
+		output ||:= ") " || lcurl || "\n"
+		save_text(output)
+		test(iflev + 1, first, first + l)	# test next
+		}
+
+	    first +:= l
+	    save_text(rcurl)		# end of then
+	    }
+	}
+    end
+
+
+#  Merge common tails that end in a goto or a return
+#  It is possible to do this repeatedly and eliminate all but one of every common
+#  tail, but the resulting code is inscrutable.  Most of the space improvements
+#  comes from the first branch.
+procedure branch_chain()
+   local	i, chainlen, j, k, m
+   static	nextlab
+   local	commonlengths
+   local	sequences
+   local	gotos, labels, characters
+   local	label
+
+   initial { nextlab := 100 }
+
+   if *buffer = 1 then
+	return
+
+   # Reverse all of the buffer segments.
+   every i := 1 to *buffer do {
+	buffer[i].code := reverse(buffer[i].code)
+	}
+
+    # Sort by reversed code text, to bring common suffixes together.
+    buffer := sortf(buffer, 1)
+
+    #   Remember the length of the common suffix between each neighbor.
+
+    buffer[1].len := 0
+    every i := 2 to *buffer do {
+	buffer[i].len := *commonpref(buffer[i].code, buffer[i - 1].code)
+#	write("buffer[", i, "].len := ", buffer[i].len)
+	if buffer[i - 1].len < buffer[i].len
+	    then buffer[i - 1].len := buffer[i].len
+	}
+
+    #  Sort by the length of the common suffix, to bring the longest
+    #  common suffixes to the end of the list
+    buffer := sortf(buffer, 3)
+
+    #  process the list in reverse order, going for the biggest suffixes
+    #  first
+
+    sequences := []
+    every i := *buffer to 1 by -1 do {
+	if /buffer[i].brothers then {
+	    span := 1
+	    buffer[i].brothers := []
+	    len := buffer[i].len
+	    if (buffer[i].len > 0) then {
+		while i - span + 1 >= 1 & buffer[i].len = buffer[i - span + 1].len do {
+		    if buffer[i].code[1:len + 1] == buffer[i - span + 1].code[1:len + 1] then {
+			put(buffer[i].brothers,  i - span + 1)
+			buffer[i - span + 1].brothers := buffer[i].brothers
+			}
+		    span +:= 1
+		    }
+		}
+	    put(sequences, i);
+	    }
+	}
+
+    #  Sometimes long fragments can be profitably replaced by shorter ones.
+    #  For example,  if there are two uses of C210 which is 9 lines long,
+    #  and C211 is 8 lines long with the same tail as C210, then it will
+    #  pay to duplicate the 2 lines of C210 and eliminate the rest of it
+    #  by jumping to C211 instead.
+    #
+    #  Before: 9 lines + 1 goto.
+    #  After:  2 lines + 2 gotos.
+    #  In order to reduce the number of lines, the number of new lines inserted
+    #  = (# of uses - 1) * (# of lines longer) must be < the number of lines
+    #  removed (# of lines in the fragment).
+    #
+    #  Accomplish this by searching shorter sequences, adjusting the .len, and
+    #  merging the brothers chains together.
+
+    every si := 1 to *sequences do {
+	i := sequences[si]
+	every sj := si + 1 to *sequences by 1 do {
+	    j := sequences[sj]
+	    if buffer[i].len ~= buffer[j].len &
+		buffer[i].code[1:buffer[j].len + 1] ==
+		buffer[j].code[1:buffer[j].len + 1] then {
+		if (*buffer[i].brothers - 1) * (buffer[i].len - buffer[j].len) <
+			(buffer[i].len - 10) then {
+		    temp := buffer[j].brothers ||| buffer[i].brothers
+		    every k := !temp do {
+			buffer[k].brothers := temp
+			buffer[k].len := buffer[j].len
+			}
+		    break
+		    }
+		}
+	    }
+	}
+
+    # Add a label at the beginning of one of the fragments and replace
+    # the remaining fragments with a branch to the label.
+
+    gotos := labels := characters := 0
+    every i := 1 to *buffer do {
+	buffer[i].code := reverse(buffer[i].code)
+	if *buffer[i].brothers > 1 then {
+	    len := buffer[i].len
+	    label := "C" || nextlab
+#	    write("rewrite '", buffer[i].code, "' => '")
+	    buffer[i].code[-len:(-len)] := label || ":\n"
+#	    write(buffer[i].code, "'\n\n")
+
+	    labels +:= 1
+	    characters -:= (*label + 2)
+
+#	    write("add label giving '", buffer[j].code, "'")
+	    every j := 1 to *buffer[i].brothers do {
+		k := buffer[i].brothers[j]
+		if k ~= i then {
+		    buffer[k].code := reverse(buffer[k].code)
+#		    write("rewrite '", buffer[k].code, "' => '")
+		    buffer[k].code[-len:0] := ""
+		    characters +:= len
+		    if buffer[k].code[-7:0] == "break;\n" then {
+			buffer[k].code[-6:0] := ""
+			characters +:= 6
+			}
+		    buffer[k].code ||:= "goto " || label || ";"
+		    gotos +:= 1
+		    characters -:= (*label + 7)
+#		    write(buffer[k].code, "'\n\n")
+		    buffer[k].code := reverse(buffer[k].code)
+		    }
+		}
+	    while pull(buffer[i].brothers)
+	    nextlab +:= 1
+	    }
+	buffer[i].code := reverse(buffer[i].code)
+	}
+
+    write("/* ", gotos, " new gotos ", labels, " new labels ", characters, " characters saved. */")
+
+   buffer := sortf(buffer, 2)
+#    every j := 1 to *buffer do {
+##	write("code[", buffer[j].number, "] := buffer[", j, "] = ", buffer[j].code)
+#	buffer[buffer[j].number] := reverse(buffer[j].code)
+#	}
+
+   # un-reverse text in the buffer
+   every i := 1 to *buffer do {
+	buffer[i].code := reverse(buffer[i].code)
+	}
+
+   end
+
+#   find a common suffix to a pair of strings
+procedure commonpref(p, q)
+
+#   write("commonpref('", reverse(p), "','", reverse(q), "')=>")
+#   write("commonpref('", p, "','", q, "')")
+    if *p > *q then
+	p := p[1:*q+1]
+
+    while not match(p, q) do
+	p := p[1:-1] 
+
+    # have a common suffix.
+    p := reverse(p)
+
+    #  bal never returns a position at the end of a string, so append a newline
+    #  so that if string is balanced right at the end, bal can return a number.
+    p ||:= "\n"
+
+    repeat {
+	# Throw away up to the next newline because all common sequences
+	# contain the newline from the previous different line.  Commoning
+	# the newline causes labels and jumps to appear at the ends of lines
+	# rather than on lines by themselves.
+	if not (p := p[upto('\n', p) + 1 : 0])
+	then {
+#	    write("''")
+	    return ""
+	    }
+
+	# if the string is not balanced with respect to [{( )}], discard
+	# stuff in front until it is balanced.  Then throw away everything
+	# up to the next newline.
+	if bal(&cset, '[{(', ')}]', p) = *p then
+	    break
+
+	p := p[2:0]
+	}
+
+    # if the string is ";" followed by newlines, throw it away
+    if p ? ( =";" & tab(many('\n')) & pos(0))
+    then {
+#	write("''")
+	return ""
+	}
+
+
+    # if the string is a single control transfer, throw it away
+    p ? {
+	if tab(many('\t\n ') | &pos) & (="goto" | ="return" | ="break")
+	then {
+#	    write("''")
+	    return ""
+	    }
+	}
+
+    # if the string is just a bunch of newlines, discard it.
+    p := trim(p, '\n')
+
+    return reverse(p)
+    end
+
+#  optimize this code text and return the optimized version
+procedure optimize(text)
+    local s, t, prelim, stuff1, stuff2
+
+    #	r->...->count--
+    #   if (r->...->count == 0)
+    #	=>
+    #   if (--r->...->count == 0)
+    while text ?
+	(tab(upto('rbI')) &
+	    (s := ((t := count()) || ="--;" || tab(many('\t\n ') | &pos) ||
+		    ="if (" || =t || =" == 0)")))
+	do  {
+	    text[find(s, text)+:*s] :=
+		"if (--" || t || " == 0)"
+	    }
+
+    #   IKID(b,6)->count++;
+    #   if (--b->count == 0) {
+    #       IKID(b,6)->count--;
+    #       }
+    #   =>
+    #   if (--b->count)
+    #       IKID(b,6)->count++
+
+    #	r->abc->count++;
+    #	if (--r->xyz->count == 0) {
+    #	   r->abc->count--; 
+    #	   }
+    #   =>
+    #	if (--r->xyz->count)
+    #	   r->abc->count++;
+    while text ?
+	(tab(upto('rbI')) &
+	    (s := ((t := count()) || ="++;" || tab(many('\n\t ') | &pos) ||
+		    ="if (--" || (u := count()) || =" == 0) {" ||
+			tab(many('\n\t ') | &pos) ||
+		    =t || ="--;" || tab(many('\n\t ') | &pos) ||
+		    =rcurl )))
+	do  {
+	    text[find(s, text)+:*s] :=
+		"if (--" || u || ")\n    " || t || "++;"
+	    }
+
+    #	opt(xyz);
+    #	return;
+    #->
+    #	r                     = xyz;
+    #	goto retry;
+    #
+    #	NEW
+    if text ?
+	(tab(upto('o')) &
+	    s := (="opt" ||
+		 (v := tab(bal())) ||
+		 =";\n" ||
+		(tab(many('\t ') | &pos) | "") ||
+		="return;")) & not find("\n", v)
+	then {
+	    text[find(s, text)+:*s] :=
+		"r                    = " || v[2:-1] || ";\ngoto retry;"
+	    }
+
+    # i0                   = b;	/* tmp */
+    # b->assem             = 86;	/* "movb a%1@,d%0" */
+    # r->assem             = 577;	/* "extbl d%0" */
+    # r->var[0].kid        = b;	/* counted */
+    # b->var[1].kid        = b->var[0].kid->var[1].kid;	/* counted */
+    # b->mark              = r->mark;
+    # r                    = i0;
+    # goto retry;
+    while (text ?
+	(tab(upto('i')) &
+	    (s :=
+		(asg :=
+		    (dst := (="i" || tab(many('0123456789')))) ||
+		    tab(many(' ')) || ="= b;" ||
+		    tab(many(nnl)) || ="\n") ||
+		(rest := tab(upto('r'))) ||
+		(asg2 := (="r" || tab(many(' ')) || ="= " || =dst ||
+		    =";\n")) ||
+		="goto retry;"))) & not find(dst, rest)
+	do  {
+#		    write("\n\n", text, "\n=>\n")
+	    text[find(s, text)+:*s] :=
+		rest || "r                    = b;\ngoto retry;"
+#		    write(text, "\n")
+	    }
+
+    #    i0                   = r->var[1].kid;
+    #    i0->assem            = 91;	/* "movl d%1,a%0" */
+    #    ...
+    #    r                    = i0;
+    #    goto retry;
+    #->
+    #    i0                   = r->var[1].kid;
+    #	 ...
+    #    r                    = i0;
+    #    goto L91;
+
+    while text ?
+	(tab(upto('ib')) &
+	    (s :=
+		(asg :=
+		    (dst := optr()) ||
+		    ="->assem" || tab(many(' ')) || ="= " ||
+		    (label := tab(many('0123456789'))) || =";" ||
+			tab(many(nnl)) || ="\n") ||
+		(rest := tab(upto('r')) ||
+		    (="r" || tab(many(' ')) || ="= " || =dst ||
+		    =";\n")) ||
+		="goto retry;"))
+	do {
+#		    write("\n\n", text, "\n=>\n")
+	    text[find(s, text)+:*s] :=
+		rest || "goto L" || label || ";"
+#		    write(text, "\n")
+	    }
+
+    #    r->var[1].kid        = i0;
+    #    ...
+    #    i0->assem            = 91;
+    #    ...
+    #    ...
+    #    r                    = r->var[1].kid;
+    #    goto retry;
+    #->
+    #    r->var[1].kid        = i0;
+    #	 ...
+    #    ...
+    #    r                    = i0;
+    #    r->assem             = 91;
+    #    goto L91;
+
+    text ? while
+	((prelim := tab(upto('r')))       &
+
+	(asg1 := ="r->"                  ||		# r->
+	    (kidpath := tab(upto(' ')))  ||		# r->kid...
+	    tab(many(' '))               ||
+	    ="= "                        ||             # r->kid.. = 
+	    (rhs := optr())              ||             # r->kid.. = i0
+	    =";"                         ||             # r->kid.. = i0;
+	    (tab(many(nnl)) | "")        ||
+	    ="\n")                       &
+
+	(stuff1 := tab(find(rhs)))       &
+
+	(asg2 := tab(match(rhs))         ||
+		 ="->assem"              ||
+		 tab(many(' '))          ||
+		 ="= "                   ||
+		 (assem := tab(many('0123456789'))) ||
+		 =";"                    ||
+		 (tab(many(nnl)) | "")   ||
+		 ="\n")                  &
+
+	(stuff2 := tab(upto('#')))       &
+
+	(stuff3 := ="#if DEBUG"          ||
+	   tab(find("#endif DEBUG"))     ||
+		   ="#endif DEBUG\n")    &
+
+	(asg3 := ="r"                    ||
+		 tab(many(' '))          ||
+		 ="= r->"                ||
+		 =kidpath                ||
+		 =";"                    ||
+		 (tab(many(nnl)) | "")   ||
+		 ="\n")                  &
+
+	="goto retry;\n")
+
+	do  {
+#		    write("\n", repl("<>", 20), "\n", text, "\n=>\n")
+	    text[1:&pos] :=
+		      prelim ||
+		      asg1   ||
+		      stuff1 ||
+		      stuff2 ||
+		      asg3   ||
+		      "r->assem             = " || assem || ";\n" ||
+		      stuff3 ||
+		      "goto L" || assem || ";\n"
+
+#		    write(repl("<>", 20), text, "\n")
+	    }
+    return text
+    end
+
+
+#   store text
+procedure save_text(s)
+    local	j
+
+    initial { buffer := []; line_buffer := "" }
+
+#   write("save_text(", s, ")")
+
+    s ||:= "\n"
+
+    while (*s ~= 0) do {
+	t := upto('\n', s) | 0
+
+	#
+	#  If s begins with "case", it begins a new fragment
+	#
+	if s ? (tab(many('\t ') | &pos) & match("case")) then {
+		put(buffer, fragment(line_buffer))
+		buffer[*buffer].number := *buffer
+		line_buffer := ""
+		}
+
+	line_buffer ||:= s[1:t]
+	lastout := s[1:t]
+
+	#
+	#  If s contains a goto, it ends the current fragment
+	#
+	if find("goto", s[1:t]) | find("return", s[1:t]) then {
+		put(buffer, fragment(line_buffer))
+		buffer[*buffer].number := *buffer
+		line_buffer := ""
+		}
+
+	if (s[t] == "\n") then {
+		t +:= 1
+		line_buffer ||:= "\n"
+		}
+
+	s[1:t] := ""
+	}
+    end
+
+#   output saved text
+procedure dump_text()
+    local	i
+    write("/* ", *buffer, " code fragments */")
+    every i := 1 to *buffer do {
+	while buffer[i].code[1:3] == "\n\n" do
+	    buffer[i].code[1:2] := ""
+#	write("frag[", i, "] = '", buffer[i].code, "'")
+	indent(buffer[i].code)
+	}
+    end
+
+#   output indented text
+procedure indent(s)
+     local	j
+     static	level
+     initial { level := 0 }
+
+     while (*s ~= 0) do {
+	t := upto('\n', s) | 0
+
+	if s[1] == "#" then
+	    writes(s[1:t])
+
+	else if trim(s[1:t], ' ') ~== "" & (not (match("goto", lastout) | match("return", lastout)) | not match("break", s)) then {
+	    lastout := s[1:t]
+	    writes(repl(" ", level * 4), s[1:t])
+	    lastout ? ( 
+		if (j := isassign()) then writes("\t", assems[j])
+		else if (j := iscompare()) then writes("\t", assems[j])
+		else if (j := isgoto()) then writes("\t", assems[j])
+		)
+	    }
+
+	if s[t-1] == "}" then
+	    level -:= 1
+
+	else if s[t-1] == "{" then
+	    level +:= 1
+
+	if (s[t] == "\n") then {
+		t +:= 1
+		write()
+		}
+
+	s[1:t] := ""
+	}
+    end
+
+procedure labelval(s)
+    s ? return integer(tab(upto(~ '0123456789')))
+    end
+
+#   move x==42 term to the first position of these clauses and sort by
+#   the case label, so that we can emit a switch statement.
+#   This is actually called before we know that we will do a switch, so
+#   it effectively sorts constant comparands together even for if's
+#   BUGS: This procedure uses an n^2 sort.  
+procedure normswitch(first, bound, x)
+    local	j, r, i, t, m, v, w
+
+    every i := first to bound - 1 do {
+	if clauses[i][j := 1 to *clauses[i]] ?
+		(=x & ="==" & r := tab(many('0123456789'))) then {
+		t := clauses[i][j]
+		clauses[i][j] := clauses[i][1]
+		clauses[i][1] := t
+		}
+	}
+
+    #	stably sort clauses by value of case label
+    every i := first to bound - 1 do {
+
+	# find minimum from i to bound
+	m := i
+	every j := i + 1 to bound - 1 do {
+	    v := integer(clauses[j][1][*x+3:0])
+	    w := integer(clauses[m][1][*x+3:0])
+#	    write("clause = '", clauses[j][1][*x+3:0], "'")
+#	    write("v = ", image(v))
+#	    write("w = ", image(w))
+	    if v < w | (v = w & indeces[j] < indeces[m])
+		then m := j
+	    }
+
+	# exchange i with the minimum
+	t := clauses[m]
+	clauses[m] := clauses[i]
+	clauses[i] := t
+	t := code[m]
+	code[m] := code[i]
+	code[i] := t
+	t := indeces[m]
+	indeces[m] := indeces[i]
+	indeces[i] := t
+	}
+
+    #	count unique switch labels
+    m := 1
+    every i := first + 1 to bound - 1 do {
+	if integer(clauses[i][1][*x+3:0]) ~= integer(clauses[i - 1][1][*x+3:0])
+	then m +:= 1
+	}
+
+    return m
+    end
+
+#   remove this term from all clauses from first upto bound
+procedure rmif(first, bound, x)
+    local	i, j
+
+    every i := first to bound - 1 do
+	if clauses[i][j := 1 to *clauses[i]] == x then {
+#	    write("remove term ", j, " from clause ", i)
+	    clauses[i] := clauses[i][1:j] ||| clauses[i][j+1:0]
+	    }
+	else write("can't happen")
+    end
+
+#   find the constant comparison in [first,bound) that reaches the farthest
+#   return the left hand comparand
+procedure maxswitch(first, bound)
+    local	best, i, j, s
+
+    #	for each term in first clause
+    every i := 1 to *clauses[first] do {
+
+	#   if the term is first in some clause
+	if clauses[first][i] == (!clauses[first : bound - 1])[1] then {
+	    clauses[first][i] ? 
+		if (s := tab(find("=="))) & move(2) & many('0123456789') then {
+		    j := switchlen(first, bound, s)
+		    if /best | j > switchlen(first, bound, best) then
+			    best := s
+		    }
+	    }
+	}
+    return best
+    end
+
+#   find out how many other clauses compare this term's left hand side
+#   with a constant
+procedure switchlen(first, bound, lhs)
+    local	i, flag, j
+
+    every i := first to bound - 1 do {
+	flag := &null
+	every j := 1 to *clauses[i] do {
+	    clauses[i][j] ?
+		if tab(match(lhs)) & ="==" & tab(many('0123456789')) then {
+		   flag := 0
+		   break
+		   }
+	    }
+	if /flag then return i - first
+	}
+
+    return bound - first
+    end
+
+#   Find term in first that reaches the farthest.
+#   Insist that the term you return is first in some clause.
+#   This is a cheap way to guarantee that the term is safe to evaluate now.
+procedure maxif(first, bound)
+    local	best, i, j, k
+
+    #	for each term in first clause
+    every i := 1 to *clauses[first] do {
+	if clauses[first][i] == (!clauses[first:0])[1] then {
+	    j := iflen(first, bound, clauses[first][i])	# get its reach
+	    if /best | j > iflen(first, bound, best) then
+		best := clauses[first][i]
+	    }
+	}
+    return best
+    end
+
+#   how many clauses have this term?
+procedure iflen(first, bound, term)
+    local	i
+    every i := first to bound - 1 do
+	if not (clauses[i][1 to *clauses[i]] == term) then return i - first
+    return bound - first
+    end
+
+
+#   get line skipping comments
+procedure getline()
+    local	j, k
+
+    if find("} /* opt */", l) then {
+#	write("getline failed")
+	fail
+	}
+
+    repeat {
+	l := &null
+	if not (l := read()) then {
+#	    write("getline failed")
+	    fail
+	    }
+	while l[1:2] == "\t" | l[1:2] == " " do
+		l[1:2] := ""
+	lineno +:= 1
+	if match("# line LINENO",l) then
+		l[8:14] := lineno
+
+#	case 9:	L9:	/* C@%01,%00 */
+#	r->assem             = 318;	/* "L%01:" */
+#	if (b->assem==24	/* I@%01,%00 */
+	l ? (if j := iscase() &
+		tab(find("/* ")) & assems[j] := tab(find("*/")+2) then {
+#		write("assems[", j, "] = ", assems[j])
+		}
+	    else if (j := isassign()) &
+		tab(find("/* ")) & assems[j] := tab(find("*/")+2) then {
+#		write("assems[", j, "] = ", assems[j])
+		}
+	    else if (j := isgoto()) &
+		tab(find("/* ")) & assems[j] := tab(find("*/")+2) then {
+#		write("assems[", j, "] = ", assems[j])
+		}
+	    else if (j := iscompare()) &
+		tab(find("/* ")) & assems[j] := tab(find("*/")+2) then {
+#		write("assems[", j, "] = ", assems[j])
+		})
+
+	if find("} /* opt */", l) then {
+#	    write("getline returns '", l, "'")
+	    return l
+	    }
+		
+	while j := find("/*", l) do {
+	    if k := find("*/", l, j) then {
+		l := l[1:j] || l[k+2:0]
+		}
+	    else if not (l ||:= read()) then fail
+	    while l[-1] == '\t' | l[-1] == ' ' do
+		    l := l[1:-1]
+	    }
+
+	if *l ~= 0 then {
+#	    write("getline returns '", l, "'")
+	    return l
+	    }
+	}
+#   write("getline fails")
+    end
+
+#   generate a switch
+procedure genswitch(iflev, x, first, bound)
+    local	last, i, this
+
+    last := first
+
+    repeat {
+	#   collect up all the things that go in this case
+	if first >= bound then return
+	while last < bound &
+	    clauses[first][1][*x+3:0] == clauses[last][1][*x+3:0] do {
+	    last +:= 1
+	    }
+
+	#   emit the case label itself
+	this := "case " || clauses[first][1][*x+3:0] || ": " ||
+		assems[clauses[first][1][*x+3:0]]
+	save_text(this)
+
+	#   remove the comparisons from the fronts of the clauses
+	every i := first to last - 1 do
+	    pop(clauses[i])
+
+	#   emit further tests for stuff under this case label
+	test(iflev + 2, first, last)
+
+	#   break out of switch
+	if lastout ~== "return;" & not match("goto ", lastout) then
+		save_text("break;")
+	else save_text("")
+	first := last
+	}
+    end
+
+#	match "i0 | i1 | i2 | ... | i10 ...  | b"
+procedure optr()
+    local s
+    while s := (="i" || tab(many('0123456789'))) | ="b" do {
+	suspend s
+	}
+    end
+
+#	match an expression "r(->var[x].kid)*->count"
+procedure count()
+    local s
+    while s := tab(bal('-')) || ="->count" do {
+	suspend s
+	}
+    end
+
+#	return # of case if this is a case statement
+procedure iscase()
+    local	j
+    if tab(many('\t ') | &pos) & ="case " & j := tab(many('0123456789')) then
+	return j
+    end
+
+#    goto L102;
+procedure isgoto()
+    if tab(find("goto")) & ="goto" & tab(many('\t ') | &pos) & ="L" &
+	(j := tab(many('0123456789'))) then {
+	    referenced[j] := &null
+	    return j
+	    }
+    end
+
+#	return # of assignment if this is an assignment to assem
+procedure isassign()
+    local	j
+    if tab(find("INSOP")) & ="INSOP" & tab(bal(' =')) &
+#   if tab(find("assem")) & ="assem" &
+	tab(many('\t ') | &pos) & ="=" & tab(many('\t ') | &pos) &
+	(j := tab(many('0123456789'))) then {
+		return j
+		}
+    end
+
+#	return # of comparison if that's what this is
+procedure iscompare()
+    return tab(find("assem")) & ="assem==" & tab(many('0123456789'))
+    end
+
+# match any pointer to an input instruction record
+# r, b, IKID(...)
+procedure insptr()
+    local s
+    if s := ="r" then suspend s
+    else if s := ="b" then suspend s
+    else if s := ="IKID" || tab(bal()) then suspend s
+    end
+
+

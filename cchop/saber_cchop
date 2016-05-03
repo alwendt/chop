@@ -1,0 +1,2 @@
+#
+saber -DMAXKIDS=6 -DMAXSYMS=6 -DLEARNING=1 -DDEBUG=0 -I../chop -I../c -I../vax ../chop/cvtpatt.c ../chop/skels.c  ../chop/deback.c doxfers.c rules.c ../c/string.c ../c/allocate.c cchop.c cmd.c ../chop/hash.c ../vax/special.c

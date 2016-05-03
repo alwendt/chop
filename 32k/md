@@ -1,0 +1,625 @@
+# 32000 machine description
+# note that the 32000 cmp's are backward's from most everyone else
+define(test,move(code($1,$2,$3),cc(cregno),b))
+define(rtest,move(code($1,$2,$3),rcc(cregno),b))
+
+# instruction bytes + clock cycles (assuming fetch)
+define(costs,`eval(($1)+($2))')
+# intermediate codes get high costs
+define(IC,999999)
+
+# a few special marker nodes that restrict optimization scope
+define(NONOPTIMIZABLE,1999999)
+
+#  Allowable register numbers.  The ranges are bitmask ranges for the
+#  bitmasks in special.c.  Actually, %mask dregno 0xff would solve a lot
+#  of problems!
+
+%range dregno 0 7;
+%range dregno0 2 7;
+%range fregno 8 15;
+%range cregno 16 16;
+
+%range rregno 0 0;     # result register; this is goofy but needed
+%range frregno 8 8;
+%range drregno 8 8;     # need 0 and 1 because of getreg()
+
+# immediate data subrange values
+
+%range d3 1 8;
+%range d4 -8 7;
+%range d14 -8192 8191;
+%range d30 -536870912 536870911;
+%range d32 -2147483648 2147483647;
+
+#
+#  various data type bits manipulated by the semantic actions
+#
+
+%type b 1;
+%type w 2;
+%type l 4;
+%type f 010;
+%type d 020;
+%type v 040;
+
+%type fd 030;
+%type lf 014;
+%type bwlfd 037;
+%type bw 3;
+%type wl 06;
+%type bwl 7;
+%type bwlf 017;
+%type any -1;
+
+#  Begin Intermediate Code Nonterminals
+#  This section can be copied with a few changes for a new target.
+
+# index registers and result registers
+ix     = "%dregno", r(dregno,4), bwl;
+iy     = ix;
+iz     = iy;
+
+ir     = "%rregno", r(rregno,4), bwl;
+
+fx     = "%fregno", f(fregno,4), f;
+fy     = fx;
+fz     = fy;
+
+dx     = "%fregno", f(fregno,8), d;
+dy     = dx;
+dz     = dy;
+
+fr    = "%frregno", f(frregno,4), f;
+dr    = "%drregno", f(drregno,8), d;
+rr     = ir | fr | dr;
+
+ap    = fp, fp, bwl;                   # use the fp as an ap
+
+
+sz    = d32;                           # size of item on stack
+
+
+# labels
+ilab   = term, term;
+xlab   = term, term, l;
+
+# End of Intermediate Code Nonterminals
+
+# machine dependent
+
+# constants
+Fcon  = "0F%term",double(term,f),f;
+Dcon  = "0D%term",double(term,d),d;
+
+lcon  = "@%term", term, l
+      | "%term", global(term), l
+      ;
+
+id    = lcon, lcon,  l, costs(4,4)
+      | "@%d14c", d14c
+      ;
+
+acon   = "%id%addop%ncon", addop(id,ncon,l)
+       | "%id+%ncon", add(ncon,id,l)
+       | id, id
+       | lcon;
+
+addop  = "+", add | "-", sub;
+
+ncon   = term
+#      | "%term%addop%ncon", addop(term,ncon,l)
+       ;
+
+con    = acon, acon, l, costs(4,0)
+       | Fcon
+       | Dcon;
+
+quick =  d4, d4,bwl, costs(1,1);
+d14c  = d14,d14, wl, costs(2,2);
+
+# numeric constants and address constants
+
+dispa = lcon,lcon,def,costs(4,4);
+
+dispc = term,term,def,costs(1,1);
+
+disp  = dispa
+      | dispc
+      ;
+
+disp1 = disp;
+disp2 = disp;
+
+# different types
+it    = b, b, b 
+      | w, w, w
+      | d, l, l
+      ;
+it2   = it;
+
+ft    = f, f, f
+      | l, d, d
+      ;
+
+ft2   = ft;
+t     = ft
+      | it
+      ;
+
+size  = b, 1, b
+      | w, 2, w 
+      | d, 4, lf
+      | l, 8, d
+      ;
+
+pow2  = 0, 1 | 1, 2 | 2, 4 | 3, 8 | 4, 16 | 5, 32 | 6, 64 | 7, 128 | 8, 256;
+
+bigpow2 = pow2
+      | 9, 512
+      | 10, 1024
+      | 11, 2048
+      | 12, 4096
+      | 13, 8192
+      | 14, 16384
+      | 15, 32768
+      | 16, 65536
+      | 17, 131072
+      | 18, 262144
+      | 19, 524288
+      | 20, 1048576
+      | 21, 2097152
+      | 22, 4194304
+      | 23, 8388608
+      | 24, 16777216
+      | 25, 33554432
+      | 26, 67108864
+      | 27, 134217728
+      | 28, 268435456
+      | 29, 536870912
+      | 30, 1073741824
+      | 31, 2147483648
+      | 32, 4294967296
+      ;
+
+
+# condition codes (x cmp y)
+rels  = eq, eq | ne, ne
+      | gt, gt | ge, ge 
+      | lt, lt | le, le;
+
+relu  = eq, eq | ne, ne
+      | hi, gt | hs, ge
+      | lo, lt | ls, le;
+
+# reversed comparison condition codes (y cmp x)
+lers  = eq, eq | ne, ne
+      | lt, gt | le, ge 
+      | gt, lt | ge, le;
+
+leru  = eq, eq | ne, ne
+      | lo, gt | ls, ge
+      | hi, lt | hs, le;
+
+cond  = "%rels", if(cc(cregno),rels,signed,b)
+      | "%lers", if(rcc(cregno),lers,signed,b)
+      | "%relu", if(cc(cregno),relu,unsigned,b)
+      | "%leru", if(rcc(cregno),leru,unsigned,b)
+      ;
+
+# valid registers
+drd   = "%dregno", r(dregno,4), bwl, costs(0,2);
+drd0  = "%dregno0", r(dregno0,4), bwl, costs(0,2);
+Drd   = "%fregno", f(fregno,size), fd, costs(0,8);
+
+
+
+nacon  = "%id%addop%ncon", addop(id,ncon,l)
+       | "%id+%ncon", add(ncon,id,l)
+       | id, id
+       | "%term", term, l
+#      | "%term", global(term), l
+       ;
+
+# register relative
+regrel = "%nacon(%drd)", add(nacon,drd,l)
+       | "%nacon(%drd)", add(drd,nacon,l)
+       | "0(%drd)", drd, def, costs(4,4)
+       ;
+
+# memory relative
+memrel = "%acon(%disp1(fp))", add(disp2,m(add(disp1,fp,l),l,4),l), def
+       | "%acon(%disp1(sp))", add(disp2,m(add(disp1,sp,l),l,4),l), def;
+
+memspace = "%dispa(fp)", add(dispa,fp,l)
+         | "%dispa(fp)", add(fp,dispa,l)
+         | "%dispc(fp)", add(dispc,fp,l)
+         | "%dispc(fp)", add(fp,dispc,l)
+         | "%dispa(sp)", add(dispa,sp,l)
+         | "%dispa(sp)", add(sp,dispa,l)
+         | "%dispc(sp)", add(dispc,sp,l)
+         | "%dispc(sp)", add(sp,dispc,l)
+	 | "0(fp)", fp, def, costs(4,4)
+	 | "0(sp)", sp, def, costs(4,4)
+	 ;
+
+lbase = acon
+      |	regrel,  regrel,  l, costs(0,3)
+      | memrel, memrel, l, costs(0,12)
+      | memspace, memspace, l, costs(0,8)
+      ;
+
+scale = b, 1 | w, 2 | d, 4 | q, 8;
+
+# scaled index register
+rscale = "%drd:%scale", mul(scale,drd,l), bwl
+       | "%drd:%scale", mul(drd,scale,l), bwl
+       | "%drd:b", drd, bwl
+       ;
+
+lcea =  "%lbase[%rscale]", add(lbase,rscale,l), l, costs(0,8)
+      | "%lbase[%rscale]", add(rscale,lbase,l), l, costs(0,8)
+      | lbase
+      | id, id, l, costs(4,4)
+      ;
+
+# control effective address
+
+wcea  = "@%d14c", d14c, w, costs(2,1);
+
+cea   = lcea
+      | wcea;
+
+mcea  = lcea, m(lcea,l,size),deref(size),costs(0,2)
+      | wcea, m(wcea,w,size),deref(size),costs(0,2)
+      | lcea, mm(lcea,l,size),deref(size),costs(0,2)
+      | wcea, mm(wcea,w,size),deref(size),costs(0,2);
+
+# address register indirect (pushing or popping)
+stack = "tos", push(sp), def, costs(0,30)
+      | "tos", pop(sp), def, costs(0,30);
+
+# (alterable) memory effective address
+amea  = mcea
+      | stack
+      ;
+
+#  Represents the contents of memory at a given address
+mea   = amea;
+
+# addressing categories
+
+iagen = amea, amea, bwl
+      | drd
+      ;
+fagen = amea, amea, fd
+      | Drd
+      ;
+agen  = amea
+      | drd
+      | Drd
+      ;
+igen  = mea, mea, bwl
+      | drd
+      ;
+fgen  = mea, mea, fd
+      | Drd
+      ;
+
+#  Represents either the contents of a memory cell, or a register.
+gen   = mea | drd | Drd;
+
+#  Any of the above except r0 and r1.
+gen0  = mea | drd0 | Drd;
+
+gen2  = gen;
+
+
+# Factored Versions of Similar Operators.
+
+bool   = and | or | xor;
+
+addops = add, add | sub, sub;
+
+mulops = mul, mul,  def
+       | div, div,  fd              # floating point division 
+       | quo, div,  bwl             # integer regular division 
+       | quo, udiv, bwl             # integer unsigned division
+       ;
+
+shft   = ash,  ash | lsh,  ursh;
+
+# Machine Instructions
+
+inst =
+# ABS.f Absolute Value Floating
+# ABS.i Absolute Value
+# ACB.i Add, Compare and Branch
+    "add%t %gen,%agen",   move(add(gen,agen,t),agen,t), def, costs(2,5)
+  | "%addops%t %gen,%agen",move(addops(agen,gen,t),agen,t),def,costs(2,5)
+# ADDC.i Add with Carry
+# ADDP.i Add Packed Decimal
+  | "addq%t %quick,%agen",move(add(quick,agen,t),agen,t), bwl, costs(2,4)
+  | "addq%t %quick,%agen",move(add(agen,quick,t),agen,t), bwl, costs(2,4)
+  | "addr %cea,%agen",    move(cea,agen,l), l,   costs(2,5)
+
+  | "%and%t %gen,%agen",  move(and(not(not(gen,l),l),agen,t),agen,t),
+							     bwl, costs(2,5)
+  | "%and%t %gen,%agen",  move(and(not(not(agen,l),l),gen,t),agen,t),
+							     bwl, costs(2,5)
+  | "%bool%t %gen,%agen",  move(bool(gen,agen,t),agen,t), bwl, costs(2,5)
+  | "%bool%t %gen,%agen",  move(bool(agen,gen,t),agen,t), bwl, costs(2,5)
+# we need some way of saying that the number in a data register is the
+# number of bits that we are going to shift by and thus we are multiplying
+# by 2^drd.  Any ideas???
+  | "lsh%t %pow2,%agen",  move(mul(pow2,agen,t),agen,t), bwl, costs(2,27)
+  | "lsh%t %pow2,%agen",  move(mul(agen,pow2,t),agen,t), bwl, costs(2,27)
+  | "ash%t %pow2,%agen",  move(mul(pow2,agen,t),agen,t), bwl, costs(2,27)
+  | "ash%t %pow2,%agen",  move(mul(agen,pow2,t),agen,t), bwl, costs(2,27)
+  | "lsh%t -%pow2,%agen", move(udiv(agen,pow2,t),agen,t), bwl, costs(2,27)
+  | "comd %gen,r0\nlshd r0,%agen",move(bitfld(agen,gen,sub(32,gen,l),l),agen,l), l, costs(4,36)
+  | "%shft%t %gen,%agen", move(shft(agen,gen,t),agen,t), bwl, costs(2,27)
+# the next line generates -r#
+#  | "%shft%t -%gen,%agen",move(shft(agen,sub(0,gen,t),t),agen,t),
+#							     bwl, costs(2,14)
+  | "b%cond %lcon",       jump(cond,lcon,l),              def, costs(2,8)
+# Single Bit Stuff
+# we need some way of saying that the number in a data register is the
+# bit number that we are going to use.  Any ideas???
+  | "ibit%t %bigpow2,%drd",move(xor(drd,bigpow2,l),drd,l), l, costs(2,6)
+  | "ibit%t %bigpow2,%drd",move(xor(bigpow2,drd,l),drd,l), l, costs(2,6)
+  | "cbit%t %bigpow2,%drd",move(and(drd,not(bigpow2,l),l),drd,l),l,costs(2,6)
+  | "cbit%t %bigpow2,%drd",move(and(not(bigpow2,l),drd,l),drd,l),l,costs(2,6)
+  | "sbit%t %bigpow2,%drd",move(or(drd,bigpow2,l),drd,l),  l, costs(2,6)
+  | "sbit%t %bigpow2,%drd",move(or(bigpow2,drd,l),drd,l),  l, costs(2,6)
+  | "tbit%t %bigpow2,%drd",rtest(and(drd,bigpow2,l),0,l),  l, costs(2,6)
+  | "tbit%t %bigpow2,%drd",rtest(and(bigpow2,drd,l),0,l),  l, costs(2,6)
+  | "tbit%t %bigpow2,%drd",test(0,and(drd,bigpow2,l),l),   l, costs(2,6)
+  | "tbit%t %bigpow2,%drd",test(0,and(bigpow2,drd,l),l),   l, costs(2,6)
+# BPT - Breakpoint
+  | `"# jump to return"',   ret(),                        def, costs(2,7)
+  | "jump %cea",          jump(true,cea,l),             def, costs(2,5)
+  | "jsr %cea",         move(call(cea,l,0,t),rr,t),  deref(rr,t), costs(2,8), Call
+  | "jsr %cea",         call(cea,l,0,t),             deref(), costs(2,8), Call
+  | "jsr %cea\nadjspb -%d3",move(call(cea,l,d3,t),rr,t),deref(rr,t), costs(4,17), Call
+  | "jsr %cea\nadjspw -%d14",move(call(cea,l,d14,t),rr,t),
+                                                        deref(rr,t), costs(4,17), Call
+  | "jsr %cea\nadjspd -%term",move(call(cea,l,term,t),rr,t),
+							  deref(rr,t), costs(4,17), Call
+  | "br %disp",           jump(true,disp,l),           def, costs(2,7)
+  | "bsr %disp",          move(call(disp,l,0,t),rr,t),   deref(rr,t), costs(2,8), Call
+  | "bsr %disp\nadjspb -%d3",move(call(disp,l,d3,t),rr,t), deref(rr,t), costs(4,17), Call
+  | "bsr %disp\nadjspw -%d14",move(call(disp,l,d14,t),rr,t),
+							  deref(rr,t), costs(4,17), Call
+  | "bsr %disp\nadjspd -%term",move(call(disp,l,term,t),rr,t),
+							  deref(rr,t), costs(4,17), Call
+# CASE.i - Case Branch
+# CBITI.i - Clear Bit Interlocked
+# CHECK.i - Bounds Check
+  | "cmp%t %gen,%gen2",   rtest(gen2,gen,t),           def, costs(2,3)
+  | "cmp%t %gen,%gen2",   test(gen,gen2,t),            def, costs(2,3)
+  | "cmpq%t %quick,%gen", rtest(gen,quick,t),          def, costs(2,3)
+  | "cmpq%t %quick,%gen", test(quick,gen,t),           def, costs(2,3)
+# CMPM.i - Compare Multiple
+# CMPS.i - Compare Strings
+  | "com%t %gen,%agen",   move(not(gen,t),agen,t),     bwl, costs(2,6)
+# CVTP - Convert to Bit Pointer
+# CXP(D) - Call External Procedure (with Descriptor)
+
+# DEI.i - Divide Extended Integer
+# DIA - Diagnose
+# ENTER - Enter New Procedure Context
+# EXIT - Exit Procedure Context
+# EXT(S).i - Extract Field (Short)
+# FFS.i - Find First Set Bit
+# FLAG - Trap on Flag
+# FLOOR.f.i - Floor Floating to Integer (use TRUNC???)
+# INDEX.i - Calculate Index
+# INS(S).i - Insert Field (Short)
+
+  | "%term:",                  label(term)
+# LFSR - Load Floating-Point Status Register
+# LMR - Load Memory Management Register
+# LPR.i - Load Processor Register (Later)
+# LXPD - Load External Procedure Descriptor
+# MEI.i - Multiply Extended Integer
+# MOD.i - modulo
+  | "rem%t %gen,%agen",   move(sub(agen,mul(div(agen,gen,l),gen,l),l),agen,l), bwl, costs(4,80)
+   | "muld %gen,r0",
+	       move(mul(gen,ir,u),ir,l), def, costs(4,80), TwoLowRegs
+  | "movd %gen2,r0\nmovqd 0,r1\ndeid %gen0,r0\nmovd r0,%agen",
+	       move(sub(gen2,mul(div(gen2,gen0,u),gen0,u),l),agen,l), bwl, costs(4,80), TwoLowRegs
+  | "mov%t %gen,%agen",   move(gen,agen,t),            bwlfd, costs(2,1)
+#--- MOV.i.f - Move Converting Integer to Floating Point
+  | "mov%it%ft2 %igen,%fagen",move(cvt(igen,it,ft2),fagen,ft2),deref(fagen,ft2),costs(2,7)
+#--- MOVFL - Move Floating to Long Floating
+  | "movfl %fgen,%fagen", move(cvt(fgen,f,d),fagen,d), deref(fagen,d), costs(2,7)
+#--- MOVLF - Move Long Floating to Floating
+  | "movlf %fgen,%fagen", move(cvt(fgen,d,f),fagen,f), deref(fagen,f), costs(2,7)
+# MOVM.i - Move Multiple
+
+  | "movq%t %quick,%agen",move(quick,agen,t), bwl, costs(2,1)
+  | "mov%it %igen,r0",ret(igen,it), bwl, costs(2,12)
+  | "mov%ft %fgen,f0",ret(fgen,ft), deref(fgen,ft), costs(2,14)
+# MOVES.i - Move String
+# MOVSU.i - Move Value from Supervisor to User Space
+# MOVUS.i - Move Value from User to Supervisor Space
+# the following two are necessary because comb.c puts in cvt's and movxdb 
+# is not legal
+  | "movb %igen,%iagen",  move(cvt(igen,it,b),iagen,b), deref(iagen,b), costs(2,1)
+  | "movw %igen,%iagen",  move(cvt(igen,it,w),iagen,w), deref(iagen,w), costs(2,1)
+  | "movx%it%it2 %igen,%iagen",move(cvt(igen,it,it2),iagen,it2),
+							   deref(iagen,it2), costs(2,7)
+  | "movz%it%it2 %igen,%iagen",move(ucvt(igen,it,it2),iagen,it2),
+							   deref(iagen,it2), costs(2,6)
+  | "%mulops%t %gen,%agen",move(mulops(agen,gen,t),agen,t), def, costs(2,70)
+  | "%mul%t %gen,%agen",  move(mul(gen,agen,t),agen,t), def, costs(2,70)
+  | "neg%t %gen,%agen",   move(sub(0,gen,t),agen,t), def, costs(2,6)
+#  | "nop",		     move(NoSource, NoDest,t), def, costs(2,3)
+# RDVAL - Validate Address for Reading
+# RESTORE - Restore Address- Data Registers
+# RET - Return from Subroutine
+# RETI - Return from Interrupt
+# RETT - Return from Trap
+# ROT.i - Rotate
+# ROUND.f.i - Round Floating to Integer
+# RXP - Return from External Procedure
+# Scondi - Save Condition as Boolean (Later?)
+# SAVE - Save Address-Data Registers
+# SETCFG - Set Configuration
+# SFSR - Store Floating-Point Status Register
+# SKPS.i - Skip String
+# SMR - Store MEmory Management Register
+# SPR.i - Store Processor Register
+# SUBC.i - Subtract with Carry
+# SUBP.i - Subtract Packed Decimal
+# SVC - Supervisor Call
+#--- TRUNC.f.i - Truncate Floating to Integer
+  | "mov%ft%it2 %fgen,%iagen",move(cvt(fgen,ft,it2),iagen,it2),deref(iagen,it2),costs(2,7)
+# WAIT - Wait
+# WRVAL - Validate Address for Writing
+
+# Intermediate Instructions.  High costs so they will get optimized out.
+# This section can be copied to a retarget with minimal changes.
+
+   | "ADDD %dx,%dy",       move(add(dx,dy,d),dz,d), d, IC
+   | "ADDF %fx,%fy",       move(add(fx,fy,f),fz,f), f, IC
+   | "ADDI %ix,%iy",         move(add(ix,iy,l),iz,l), l, IC
+   | "ADDP %ix,%iy",         move(add(ix,iy,l),iz,l), l, IC
+   | "ADDRFP",               move(add(term,ap,l),iz,l), l, IC
+   | "ADDRGP",               move(global(term),iz,l), l, IC
+#
+#  The NS32k has 30-bit displacements for addressing modes.  This
+#  was causing extra tests to be generated when generating code for
+#  local variables, etc; the rule had to compile an explicit test to
+#  see if the stack offset was within the correct range.  Stack offsets
+#  are, in practice, always representable within 30 bits.
+#  The correct way to address this problem is to redefine the
+#  intermediate code for ADDRLP so that it uses a 30-bit offset.
+#  The system declines to generate explicit tests for conditions that
+#  are implied by the inputs to the optimization.
+#
+   | "ADDRLP %term",         move(add(term,fp,l),iz,l), l, IC
+   | "ADDU %ix,%iy",         move(add(ix,iy,l),iz,l), l, IC
+   | "ARGB %sz,%con,%ix",    pushblock(ix,l), def, NONOPTIMIZABLE
+   | "ARGD %sz,%con,%dx",    move(dx,m(add(con,sp,l),l,8),d), deref(dx,d), IC
+   | "ARGF %sz,%con,%fx",    move(fx,m(add(con,sp,l),l,4),f), deref(fx,f), IC
+   | "ARGI %sz,%con,%ix",    move(ix,m(add(con,sp,l),l,4),l), def, IC
+   | "ARGP %sz,%con,%ix",    move(ix,m(add(con,sp,l),l,4),l), def, IC
+   | "ARGU %sz,%con,%ix",    move(ix,m(add(con,sp,l),l,4),l), def, IC
+#
+#  Structure assignment operators are implemented by hard code in
+#  the gen.c file.  They are not presently pattern-matched.
+#
+   | "ASGNB %ix,%iy",        memcpy(ix,iy,ilab), def, NONOPTIMIZABLE
+   | "ASGNC %ix,%iy",        move(iy,m(ix,l,1),b), b, IC
+   | "ASGND %ix,%dy",        move(dy,m(ix,l,8),d), deref(dy,d), IC
+   | "ASGNF %ix,%fy",        move(fy,m(ix,l,4),f), deref(fy,f), IC
+   | "ASGNI %ix,%iy",        move(iy,m(ix,l,4),l), l, IC
+   | "ASGNP %ix,%iy",        move(iy,m(ix,l,4),l), l, IC
+   | "ASGNS %ix,%iy",        move(iy,m(ix,l,2),w), w, IC
+
+   | "BANDU %ix,%iy",        move(and(not(not(ix,l),l),iy,l),iz,l), l, IC
+   | "BCOMU %ix",            move(not(ix,l),iz,l), l, IC
+   | "BORU %ix,%iy",         move(or(ix,iy,l),iz,l), l, IC
+   | "BXORU %ix,%iy",        move(xor(ix,iy,l),iz,l), l, IC
+
+   | "CALLB %ix,%iy",        memcpy(call(ix,l,0,l),iy,ilab), deref(iy,l), IC, Call
+   | "CALLD %ix",            move(call(ix,l,0,d),dr,d), deref(dr,d), IC, Call
+   | "CALLF %ix",            move(call(ix,l,0,f),fr,f), deref(fr,f), IC, Call
+   | "CALLI %ix",            move(call(ix,l,0,l),ir,l), deref(ir,l), IC, Call
+   | "CALLV %ix",            call(ix,l,0,l), l, IC, Call
+
+   | "CNSTC",                move(xlab,iz,l), def, IC
+   | "CNSTD",                move(xlab,iz,d), def, IC
+   | "CNSTF",                move(xlab,iz,f), def, IC
+   | "CNSTI",                move(xlab,iz,l), def, IC 
+   | "CNSTP",                move(xlab,iz,l), def, IC
+   | "CNSTS",                move(xlab,iz,l), def, IC 
+   | "CNSTU",                move(xlab,iz,l), def, IC
+
+   | "CVCI %ix",             move(cvt(ix,b,l),iz,l), deref(iz,l), IC
+   | "CVCU %ix",             move(ucvt(ix,b,l),iz,l), deref(iz,l), IC
+   | "CVDF %dx",             move(cvt(dx,d,f),fz,f), deref(fz,f), IC
+   | "CVDI %dx",             move(cvt(dx,d,l),iz,l), deref(iz,l), IC
+   | "CVFD %fx",             move(cvt(fx,f,d),dz,d), deref(dz,d), IC
+   | "CVIC %ix",             move(cvt(ix,l,b),iz,b), deref(iz,b), IC
+   | "CVID %ix",             move(cvt(ix,l,d),dz,d), deref(dz,d), IC
+   | "CVIS %ix",             move(cvt(ix,l,w),iz,w), deref(iz,w), IC
+   | "CVIU %ix",             move(ix,iz,l), l, IC
+   | "CVPU %ix",             move(ix,iz,l), l, IC
+   | "CVSI %ix",             move(cvt(ix,w,l),iz,l), deref(iz,l), IC
+   | "CVSU %ix",             move(ucvt(ix,w,l),iz,l), deref(iz,l), IC
+   | "CVUC %ix",             move(cvt(ix,l,b),iz,b), deref(iz,b), IC
+   | "CVUI %ix",             move(ix,iz,l), l, IC
+   | "CVUP %ix",             move(ix,iz,l), l, IC
+   | "CVUS %ix",             move(cvt(ix,l,w),iz,w), deref(iz,w), IC
+
+   | "DIVD %dx,%dy",       move(div(dx,dy,d),dz,d), d, IC
+   | "DIVF %fx,%fy",       move(div(fx,fy,f),fz,f), f, IC
+   | "DIVI %ix,%iy",         move(div(ix,iy,l),iz,l), l, IC
+   | "DIVU %ix,%iy",         move(udiv(ix,iy,l),iz,l), l, IC
+
+   | "EQD %dx,%dy",          jump(if(code(dx,dy,d),eq,signed,b),ilab,l), def, IC
+   | "EQF %fx,%fy",          jump(if(code(fx,fy,f),eq,signed,b),ilab,l), def, IC
+   | "EQI %ix,%iy",          jump(if(code(ix,iy,l),eq,signed,b),ilab,l), def, IC
+   | "EQU %ix,%iy",          jump(if(code(ix,iy,l),eq,signed,b),ilab,l), def, IC
+
+   | "INDIRB %ix",           move(ix,iy,l), def, NONOPTIMIZABLE
+   | "INDIRC %ix",           move(m(ix,l,1),iz,b), def, IC
+   | "INDIRD %ix",           move(m(ix,l,8),dz,d), deref(dz,d), IC
+   | "INDIRF %ix",           move(m(ix,l,4),fz,f), deref(fz,f), IC
+   | "INDIRI %ix",           move(m(ix,l,4),iz,l), def, IC
+   | "INDIRP %ix",           move(m(ix,l,4),iz,l), def, IC
+   | "INDIRS %ix",           move(m(ix,l,2),iz,w), def, IC
+   | "JUMPV %ix",            jump(true,ix,l), l, IC
+   | "LABELV",               label(term), def, IC
+   | "LED %dx,%dy",          jump(if(code(dx,dy,d),le,signed,b),ilab,l), def, IC
+   | "LEF %fx,%fy",          jump(if(code(fx,fy,f),le,signed,b),ilab,l), def, IC
+   | "LEI %ix,%iy",          jump(if(code(ix,iy,l),le,signed,b),ilab,l), def, IC
+   | "LEU %ix,%iy",          jump(if(code(ix,iy,l),le,unsigned,b),ilab,l), def, IC
+#
+#  The front end inserts LOAD opcodes in between nodes that it doesn't want
+#  combined.  Following are not pattern-matched.  The patterns appear here
+#  in order to derive reasonable signatures.
+#
+   | "LOADB %iz",            move(iz,iz,l), l, NONOPTIMIZABLE
+   | "LOADC %iz",            move(iz,iz,l), l, NONOPTIMIZABLE
+   | "LOADD %dz",            move(dz,dz,d), d, NONOPTIMIZABLE
+   | "LOADF %fz",            move(fz,fz,f), f, NONOPTIMIZABLE
+   | "LOADI %iz",            move(iz,iz,l), l, NONOPTIMIZABLE 
+   | "LOADP %iz",            move(iz,iz,l), l, NONOPTIMIZABLE 
+   | "LOADS %iz",            move(iz,iz,l), l, NONOPTIMIZABLE
+   | "LOADU %iz",            move(iz,iz,l), l, NONOPTIMIZABLE
+   | "LSHI %ix,%iy",         move(ash(ix,iy,l),iz,l), l, IC
+   | "LSHU %ix,%iy",         move(ash(ix,iy,l),iz,l), l, IC
+   | "LTD %dx,%dy",          jump(if(code(dx,dy,d),lt,signed,b),ilab,l), def, IC
+   | "LTF %fx,%fy",          jump(if(code(fx,fy,f),lt,signed,b),ilab,l), def, IC
+   | "LTI %ix,%iy",          jump(if(code(ix,iy,l),lt,signed,b),ilab,l), def, IC
+   | "LTU %ix,%iy",          jump(if(code(ix,iy,l),lt,unsigned,b),ilab,l), def, IC
+   | "MODI %ix,%iy",         move(sub(ix,mul(div(ix,iy,l),iy,l),l),iz,l), l, IC
+   | "MODU %ix,%iy",         move(sub(ix,mul(div(ix,iy,u),iy,u),l),iz,l), l, IC
+   | "MULD %dx,%dy",         move(mul(dx,dy,d),dz,d), d, IC
+   | "MULF %fx,%fy",         move(mul(fx,fy,f),fz,f), f, IC
+   | "MULI %ix,%iy",         move(mul(ix,iy,l),iz,l), l, IC
+   | "MULU %ix,%iy",         move(mul(ix,iy,u),iz,l), l, IC
+   | "NED %dx,%dy",        jump(if(code(dx,dy,d),ne,signed,b),ilab,l), def, IC
+   | "NEF %fx,%fy",        jump(if(code(fx,fy,f),ne,signed,b),ilab,l), def, IC
+   | "NEGD %dx",            move(sub(0,dx,d),dz,d), d, IC
+   | "NEGF %fx",            move(sub(0,fx,f),fz,f), f, IC
+   | "NEGI %ix",             move(sub(0,ix,l),iz,l), l, IC
+   | "NEI %ix,%iy",          jump(if(code(ix,iy,l),ne,signed,b),ilab,l), def, IC
+   | "NEU %ix,%iy",          jump(if(code(ix,iy,l),ne,signed,b),ilab,l), def, IC
+   | "RETD %dx",            ret(dx,d), d, IC
+   | "RETF %fx",            ret(fx,f), f, IC
+   | "RETI %ix",             ret(ix,l), l, IC
+   | "RETV",                 ret(), l, IC
+   | "RSHI %ix,%iy",         move(ash(ix,sub(0,iy,l),l),iz,l), l, IC
+   | "RSHU %ix,%iy",         move(bitfld(ix,iy,sub(32,iy,l),l),iz,l), l, IC
+   | "SUBD %dx,%dy",       move(sub(dx,dy,d),dz,d), d, IC
+   | "SUBF %fx,%fy",       move(sub(fx,fy,f),fz,f), f, IC
+   | "SUBI %ix,%iy",         move(sub(ix,iy,l),iz,l), l, IC
+   | "SUBP %ix,%iy",         move(sub(ix,iy,l),iz,l), l, IC
+   | "SUBU %ix,%iy",         move(sub(ix,iy,l),iz,l), l, IC
+#  End of Intermediate Code Definitions
+   ;

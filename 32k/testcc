@@ -1,0 +1,24 @@
+#  Build binaries using the ordinary cc command for comparison
+#  Run all those binaries using /etc/passwd as standard input,
+#  and record the results in the cc-outputs directory.
+
+/bin/rm -fr dotcfiles cc-outputs cc-binaries
+mkdir dotcfiles
+mkdir cc-outputs
+mkdir cc-binaries
+
+cd dotcfiles
+rcp 'brahms.cs.colostate.edu:chop/'$1'/chop/test/*.c' .
+cd ..
+
+cd cc-binaries
+foreach name ( ../dotcfiles/*.c )
+	set aout=`basename $name`
+	cc -o $aout:r $name
+	echo "running " $aout:r
+	if ( -x ./$aout:r ) then
+	./$aout:r /etc/passwd /etc/hosts > ../cc-outputs/$aout:r
+	else
+	echo "Cannot execute " ./$aout:r
+	endif
+	end

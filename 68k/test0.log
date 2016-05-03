@@ -1,0 +1,68 @@
+recent: Command not found.
+assembling 0q.s
+assembling 8q.s
+assembling addition.s
+assembling array.s
+assembling bitand.s
+assembling bitor.s
+assembling bitxor.s
+assembling complement.s
+assembling constarray.s
+assembling discard.s
+assembling division.s
+assembling funcparams.s
+assembling funcptr.s
+assembling funcreturns.s
+assembling globals.s
+assembling grep.s
+assembling ifrelational.s
+assembling ij.s
+assembling inc.s
+assembling junk1.s
+assembling modulo.s
+assembling multiplication.s
+assembling negation.s
+assembling ptx.s
+as: error (ptx.s:938): Invalid operand
+as: error (ptx.s:983): Invalid operand
+as: error (ptx.s:1090): Invalid operand
+mv: ptx: No such file or directory
+assembling scom.s
+assembling scom0.s
+assembling shftchk.s
+assembling sort.s
+assembling spill.s
+assembling subtraction.s
+assembling switch.s
+recent: Command not found.
+running 0q
+running 8q
+running addition
+running array
+running bitand
+running bitor
+running bitxor
+running complement
+running constarray
+running discard
+running division
+running funcparams
+running funcptr
+running funcreturns
+running globals
+running grep
+running ifrelational
+running ij
+running inc
+running junk1
+running modulo
+Arithmetic exception
+running multiplication
+running negation
+running scom
+running scom0
+running shftchk
+running sort
+running spill
+running subtraction
+running switch

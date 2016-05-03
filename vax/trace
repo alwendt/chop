@@ -1,0 +1,1 @@
+(echo qsort+2:b;echo :r;echo 2000\$s;yes :s) | adb $1 | grep -v 'running'

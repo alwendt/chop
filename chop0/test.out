@@ -1,0 +1,116 @@
+opt(103af7a0) source line 4:
+2->1 rttot move(%02,m(add(%01,sp,l),l,4),l)
+perform 2->1 opt:
+;:%02.num<=127
+;:%02.num>=-128
+move(%02,d(%00,4),l)	# 999999
+CNSTI
+{6,7,6,6,0,1,0,0,0,0,0,0,0,0,0,0,255,0,0,0,0,0,5,}
+move(d(%00,4),m(add(%01,sp,l),l,4),l)	# 1e+06
+ARGI %03,%01,%00
+{7,7,6,7,0,2,7,0,2,0,0,0,0,0,0,0,255,0,0,0,0,0,5,}
+=
+move(%02,m(add(%01,sp,l),l,4),l)	# 26
+movel #%02,sp@(%01:l)
+{6,6,6,6,0,2,7,0,2,0,0,0,0,0,0,0,0,0,0,0,0,0,5,}
+
+after opt:
+   f k p u skl sig address
+-> 6-1 0 0 622  52 103af7a0movel #%00,sp@(%01:l)
+                           move(%00,m(add(%01,sp,l),l,4),l)
+
+
+
+opt(103af7a0) source line 4:
+1->1 rttot move(%00,m(add(%01,sp,l),l,4),l)
+1->2 rttot move(%00,m(add(%01,sp,l),l,4),l)
+opt(103af880) source line 4:
+2->1 rttot move(call(%02,l,0,l),d(%01,4),l)
+perform 2->1 opt:
+;:%01.num<=0
+;:%01.num>=0
+move(%02,d(%00,4),l)	# 999999
+ADDRGP
+{6,7,6,6,0,1,0,0,0,0,0,0,0,0,0,0,255,0,0,0,0,0,5,}
+move(call(d(%00,4),l,0,l),d(%01,4),l)	# 999999
+CALLI %00
+{7,8,6,7,0,0,0,0,0,1,0,0,0,0,0,0,255,1,0,0,0,0,5,}
+=
+move(call(%02,l,0,l),d(%01,4),l)	# 46
+jbsr %02
+{6,7,6,6,0,1,0,0,0,1,0,0,0,0,0,0,1,0,0,0,0,0,5,}
+
+after opt:
+   f k p u skl sig address
+-> 6-1 0 0 642  68 103af880jbsr %00
+                           move(call(%00,l,0,l),d(%06,4),l)
+
+
+
+opt(103af880) source line 4:
+1->1 rttot move(call(%00,l,0,l),d(%01,4),l)
+1->2 rttot move(call(%00,l,0,l),d(%01,4),l)
+opt(103af940) source line 4:
+1->1 rttot ret()
+perform 1->1 opt:
+ret()	# 999999
+RETV
+{6,6,6,6,0,0,7,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,9,}
+=
+ret()	# 18
+| return
+{6,6,6,6,0,0,7,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,9,}
+
+after opt:
+   f k p u skl sig address
+-> 6-1 0 0 651   4 103af940| return
+                           ret()
+
+
+
+opt(103af940) source line 4:
+1->1 rttot ret()
+1->2 rttot ret()
+opt(103afa70) source line 4:
+1->1 rttot label(%00)
+perform 1->1 opt:
+label(%00)	# 999999
+LABELV
+{6,6,6,6,0,1,7,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,9,}
+=
+label(%00)	# 8
+%00:
+{6,6,6,6,0,1,7,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,9,}
+
+after opt:
+   f k p u skl sig address
+-> 6-1 0 0 652  15 103afa70%00:
+                           label(%00)
+
+
+
+opt(103afa70) source line 4:
+1->1 rttot label(%00)
+1->2 rttot label(%00)
+.text
+.globl _main
+argoffset 4 argbuildsize 4
+_main:
+|#PROLOGUE# 0
+link a6,#0
+addl #-L2,sp
+moveml	#L3,sp@(L4:l)
+fmovem #L5,a6@(-L6:l)
+|#PROLOGUE# 1
+movel #1,sp@(272292016:l)
+jbsr _foo
+| return
+L1:
+moveml sp@(4),#0x3cfc
+unlk a6
+rts
+L2 = 44
+L3 = 15612
+L4 = 4
+L5 = 0
+L6 = 4

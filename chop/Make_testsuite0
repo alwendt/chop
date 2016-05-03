@@ -1,0 +1,82 @@
+#!/bin/sh
+# Compile all of the programs in test/*.c on different machines
+
+MACH=$1
+export MACH
+
+#
+# Initialize the directories for all the Sun4's
+#
+machines="beethoven sor puccini orff brahms copland"
+for machine in $machines
+do
+	make -e md
+	/bin/rm -fr $machine
+	mkdir $machine
+	mv md $machine
+	echo hello > $machine/IMFREE
+done
+
+#
+#  
+#
+target=$1
+/bin/rm -f ../$target/opt.*.good ../$target/*.0.new
+names=`wc test/*.c | grep '\.c' | sort -r | awk '{ print $4}'`
+for name in $names
+do
+    echo $name
+
+    outname=../../$target/`basename ../$target/$name .c`.0.new
+    optname=../../$target/opt.`basename ../$target/$name .c`.good
+    echo outname = $outname
+    filename=`basename $name`
+    while :
+    do
+	for machine in $machines
+	do
+	    load=`ruptime | grep $machine | awk '{ print $7 }'`
+	    if [ -f $machine/IMFREE -a $load -lt 2 ]
+	    then
+		echo load on $machine is $load
+		rm $machine/IMFREE
+		chdir $machine
+		echo "Compiling " $name " on " $machine
+		rsh $machine chdir `pwd` ";"\
+		    cat ../$name '|' nice ../../chop0/chop0 ">" $outname ";"\
+sed "<" optpats \"s/# line \(.*\)/# file $filename line \1/\" ">" $optname ";"\
+		    echo hello ">" IMFREE &
+		chdir ..
+		break 2
+	    fi
+	    done
+	sleep 10
+    done
+done
+
+#
+#
+#
+echo "All jobs submitted ... waiting for completion ... "
+for machine in $machines
+do
+    echo Waiting for $machine
+    while :
+    do
+	if [ -f $machine/IMFREE ]
+	then
+		echo $machine has completed
+		break
+	else
+		sleep 10
+	fi
+    done
+done
+
+echo "All machines have completed!"
+touch testsuite0
+
+
+#
+#echo beethoven ; echo vivaldi ; echo sor ; echo puchini ; echo orff ; echo brahmns ; ruptime | grep up | awk ' { if  ( $7 < 2 ) print $1 } ' | sort | uniq -c | awk ' { if ( $1 > 1 ) print $2 }'
+

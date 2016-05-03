@@ -1,0 +1,327 @@
+/* You have this code because you wanted it now rather than correct.
+ * Bugs abound!  Contact Alan Wendt for a later version or to be
+ * placed on the chop mailing list.
+ *
+ * Alan Wendt / Computer Science
+ * Colorado State University / Ft Collin CO 80523
+ * 303-491-7323.  wendt@cs.colostate.edu
+ */
+
+#include <stdio.h>
+#include "c.h"
+#include "hop2.h"
+#include <sys/file.h>
+#include <signal.h>
+#include "md.h"
+
+struct node inslist[INSSIZE], *nextins = inslist;
+
+extern struct node *globr;
+
+/* VARARGS1 */
+cerror( s, a, b, c ) char *s; { /* compiler error: die */
+    fprintf( stderr, "cchop error line %d\n", lineno);
+    fprintf( stderr, s, a, b, c );
+    fprintf( stderr, "\n" );
+#ifdef BUFSTDERR
+    fflush(stderr);
+#endif
+    exit(1);
+    }
+
+/* ptoi - convert pattern to instance */
+static char *ptoi(result, pat, vars, lowlim, numbers)
+    register	char *result, *pat;
+    VARTYPE *vars;
+    unsign32	numbers;
+    {
+    register char	*p;
+    unsigned	v;
+    char	bf[20];
+
+    do	{
+	if (ISVAR(pat) && lowlim <= (v = VAR(pat)) &&
+	    v < MAXGLOBALS+MAXFREENONTERMS) {
+	    if (numbers & (1 << v)) {
+		pat += VARLN;
+		sprintf(bf, "%d", vars[v].num);
+		for (p = bf; *p; p++)
+		    *result++ = *p;
+		}
+	    else if (vars[v].str) {
+		pat += VARLN;
+		for (p = vars[v].str; *p; p++)
+		    *result++ = *p;
+		}
+	    }
+	} while (*result++ = *pat++);
+    return result - 1;			/* return pointer to the null */
+    }
+
+
+#if DEBUG
+#define TDUMP(n) tdump(n, r);
+#define PERFORM(s) printf(s, __LINE__);
+#define AFTER() { printf("after opt:\n"); dagdump(globr, 0, r, -1); }
+#else
+#define TDUMP(n)
+#define PERFORM(s)
+#define AFTER()
+#endif
+
+/*  retry:				*/
+/*  Do optimizations at this root.	*/
+/*  If there are any			*/
+/*	do opt on each new kid		*/
+/*	goto retry			*/
+/*  else give up.			*/
+void opt(r)				/* the function			*/
+    register struct node *r;		/* that does all the work	*/
+    {
+    register struct node *i0, *i1, *i2, *b, *t;
+    struct node *i3, *i4, *i5, *i6;
+
+    retry:
+#if DEBUG
+    printf("opt(%x) source line %d:\n", r, lineno);
+    validag();
+#endif
+    if (nextins > inslist + (INSSIZE - 100))
+	cerror("no instruction recs");
+
+    switch (INSOP(r))
+	{
+	/*  LOAD operators restrict combination -- chop does not
+	 *  combine an instruction below a LOAD with one above it.
+	 *  But it does go below and optimize the stuff down there.
+	 */
+	case LOADB: case LOADC: case LOADD: case LOADF:
+	case LOADI: case LOADP: case LOADS: case LOADU:
+	    r = r->kids[0];
+	    if (r)
+		goto retry;
+	    else
+		return;
+
+	/*  Rewrite > and >= intermediate opcodes into < and <=.  This
+	 *  decreases the number of inferred rules and improves coverage.
+	 */
+	case GED: case GEF: case GEI: case GEU:
+	case GTD: case GTF: case GTI: case GTU:
+	    r->op += (LED - GED);
+	    i0 = r->kids[0];
+	    r->kids[0] = r->kids[1];
+	    r->kids[1] = i0;
+	    goto retry;
+
+	/*  Rewrite NEU and EQU into NEI and EQI */
+	case NEU: case EQU:
+	    r->op += (NEI - NEU);
+	    goto retry;
+
+	    $O			/* optimization rules	*/
+
+#if LEARNING
+	defalt:
+	default:
+	if (r->op == NULL && !doing_onesies)
+	    cerror("no assem for `%s'", INSRT(r));
+
+	if (comb(r))
+	    goto retry;		/* any opts done?	*/
+#endif
+	}
+    } /* opt */
+
+tdump(j, r)
+    int j; struct node *r;
+    {
+    printf("case %d\n\n", j);
+    dagdump(globr, 0, r, -1);
+    }
+
+$P				/* allocation sigs	*/
+
+char *skelvec[] = {		/* skeleton name vector	*/
+    $V
+    };
+
+unsign16	nskels = nelts(skelvec);
+
+short	signature_vector[] = {		/* signature number vector */
+    $G
+    };
+
+char **skelptr = skelvec;
+short *sigptr = signature_vector;
+
+/*  display a rooted dag						*/
+dagdump(c, level, pointer, kidno)
+    struct node *c, *pointer;		/* root of tree */
+    int8 level;				/* level */
+    {
+    register		i;
+    char		bf[MAXLINE];
+    int			sigd;
+
+    if (c == NULL) return;
+    if (level == 0) {
+	printf("   f k p u skl sig address\n");
+	}
+    printf(c == pointer ? "->" : "  ");
+
+    sigd = signo(c->op);
+
+    printf("%2d%2d%2d %d %3d %3d %08x",
+	kidlb(c), kidno, kidub(c) - kidlb(c), c->count, c->op, sigd, c);
+    
+    for (i = 0; i < level; i++)
+	printf("  ");
+    /* SUPPRESS 57 */
+    ptoi(bf, skelptr[c->op], c->kids, kidub(c), sigs[sigd].numbers);
+    printf("%s\n", bf);
+#if LEARNING
+    for (i = 0; i < level; i++)
+	printf("  ");
+    printf("                           %s\n", INSRT(c));
+#endif
+    for (i = kidlb(c); i < kidub(c); i++)
+	if (IKID(c, i))
+	    dagdump(IKID(c, i), level + 1, pointer, i);
+    if (level == 0) {
+	printf("\n");
+	}
+    fflush(stdout);
+    }
+
+void violation()
+    {
+    fflush(stdout);
+    cerror("memory violation");
+    }
+
+#if LEARNING || DEBUG
+static int		nodeuse[200];
+static struct node	*nodes[200];
+static int		nnodes;
+static accnodes(ins)			/* get a linear list of all	*/
+    struct node *ins;			/* accessible nodes		*/
+    {					/* and their encounter counts	*/
+    int		lim, i;
+    for (i = 0; i < nnodes; i++)
+	if (nodes[i] == ins) goto found;
+    nodes[i] = ins;
+    nodeuse[i] = 0;
+    nnodes++;
+    found:
+    nodeuse[i]++;
+    if (nodeuse[i] == 1) {		/* if this is first encounter	*/
+	for (i = kidlb(ins), lim = kidub(ins); i < lim; i++) {
+	    if (IKID(ins, i)) accnodes(IKID(ins, i));
+	    else {
+		dagdump(globr, 0, ins, -1);
+		printf("accnodes: null kid ptr at line %d!\n", lineno);
+		printf("ins->rt %s\n", INSRT(ins));
+		cerror("kidlb %d kidub %d\n", kidlb(ins), kidub(ins));
+		}
+	    }
+	}
+    }
+
+validag()			/* check node & reg usecounts in dag	*/
+    {
+    struct node		**tisp;
+    int			i;
+
+    nnodes = 0;
+
+    for (tisp = lowisp; tisp < hisp; tisp++) {
+	/* printf("insstk[%d]: \n", tisp - lowisp);
+	   dagdump(*tisp, 0, 0, -1);
+	*/
+	accnodes(*tisp);
+	}
+
+    for (i = 0; i < nnodes; i++) {
+	if (nodeuse[i] != nodes[i]->count) {
+	    for (tisp = lowisp; tisp < hisp; tisp++) {
+		dagdump(*tisp, 0, nodes[i], -1);
+	    printf("validag: bad node %d count %d should be %d\n",i,
+		nodes[i]->count, nodeuse[i]);
+		}
+
+	    cerror("validag: bad node %d count %d should be %d\n",i,
+		nodes[i]->count, nodeuse[i]);
+	    }
+	}
+    }
+#endif
+struct node *globr, null_insrec = { 1 };
+
+
+/* ARGSUSED */
+init_hop(argc, argv) int argc; char **argv;
+    {
+#ifndef __hpux
+    signal(SIGBUS, violation);
+    signal(SIGSEGV, violation);
+    signal(SIGFPE, violation);
+#endif
+    }
+
+
+/*  Move the value out of from into some other location.  Free up the source register.	*/
+void movereg(from, tomask, width, comment)
+    int		from;			/* source register #		*/
+    unsign32	tomask;			/* destination mask		*/
+    int		width;			/* width in allocation atoms	*/
+    char       *comment;                /* why are we doing this	*/
+    {
+    int		to;
+    char	bf[512];
+    VARTYPE	kid[MAXGLOBALS+MAXFREENONTERMS];
+    int		fromclass, toclass;
+    register char	*p;
+    unsigned	v;
+    register	char *dst, *src;
+
+#if 0
+    printf("movereg: from %x tomask %x width %x\n",from,tomask,width);
+#endif
+    to = getreg(tomask, width, contents[from]);		/* get dest reg */
+    if (to == -1) {
+	outflush();
+	cerror("expression too complex");
+	}
+
+    fromclass = regclass[width - 1][from];
+
+    toclass = regclass[width - 1][to];
+
+    putreg(from, width, __LINE__);		/* free source */
+
+    /* build pattern */
+    if (moveops[fromclass * NOREG + toclass] == -1) {
+       printf("%s no moveops for moving class/reg %d/%d to %d/%d\n",
+	      commentstring,fromclass,from,toclass,to);
+       bf[0] = (char)NULL; /* Just in case!!! */
+	}
+    else {
+	dst = bf;
+	src = skelptr[moveops[fromclass * NOREG + toclass]];
+
+	do  {
+	    if (ISVAR(src) && 0 <= (v = VAR(src)) && v < MAXGLOBALS+MAXFREENONTERMS) {
+		src += VARLN;
+		v = (v == FIRSTKID) ? from : to;		/* FIRSTKID is source, next is dest */
+		for (p = regnames[width - 1][v]; *p;)
+		    *dst++ = *p++;
+		}
+	    } while (*dst++ = *src++);
+	}
+#if 0
+    printf("movereg: from %x to %x toclass %x\n", from, to, toclass);
+#endif
+    print("%s\t%s%s\n", conback(bf), commentstring, comment);
+    }
+

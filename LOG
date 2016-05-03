@@ -1,0 +1,61 @@
+There's a new lcc, v1.8
+
+changes/improvements:
+previously, lcc stopped compiling when it detected >20 errors;
+-Wf-en now sets the error limit to "n".
+
+the driver, lcc, now checks for non-existent or unreadable
+.c or .i files and does not try to compile them.
+
+errors fixed:
+failed to recognize as constant expressions unsigned comparisons
+with 0, eg, int i=5U>0;
+
+failed to diagnose too many initializers in structure initializations,
+eg, struct { int a,b; } x = { 1,2,3 };
+
+crashed when an unknown typedef was used in declaring parameters in
+old-style function definitions, eg, f(x) T x; {...}
+
+failed to fold case labels that exceeded the limits of the type of the
+associated switch expression, eg, int i; switch (i) {case 0xeb010000:;}.
+this resulted in erroneous duplicated case label diagnostics or bad code.
+
+failed to count as references occurrences of identifiers in asm, so
+locals with no other references were erroneously deleted, eg,
+asm("lw %i,$4") failed to note the reference to "i".
+
+erroneously identified `T*' instead of just `T' as the offending type
+when sizeof(T) is unknown or 0, eg, void *a,*b; ... a-b;
+
+erroneously permitted arithmetic on `void *const' pointers, eg,
+void *const p; int i; p+i;
+
+crashed when both -b and -n were specified.
+
+failed to make parameters visible at the ends of their declarators,
+which led to erroneous diagnostics for valid prototypes, eg,
+f(int a, int b[sizeof a]).
+
+crashed when comparing two prototypes that identical except for
+top-level qualifiers, eg, int f(int); int f(const int);
+
+errno.h defined more error codes than are specified by the standard; it
+now defines only EDOM and ERANGE.
+
+assert.h, errno.h, locale.h, stdio.h, stdlib.h, string.h, and time.h
+included other headers and thus defined symbols beyond those permitted
+by the standard. they now define only the specified symbols, except for
+assert.h, which defines write, sprintf, and abort on some targets.
+
+on Suns and BSD VAXes, ctype.h defined static functions _tolower and
+_toupper, which prompted `unreferenced' warnings if they weren't used.
+
+on the MIPS and SPARC, better code for structure assignment and
+for passing structures.
+
+on the SPARC with -g, gdb & dbx printed incorrect values for parameters
+that were changed because of extraneous symbol table entries.
+
+on the MIPS with -g, gdb & dbx mislocated some source files when
+includes contained function and variable definitions.

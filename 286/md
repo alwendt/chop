@@ -1,0 +1,441 @@
+# Intel 80286
+
+#define(test,code($1,$2,$3))
+
+# costs are instruction bytes and clock cycles
+define(costs,`eval(($1)+($2))')
+
+# intermediate codes get high costs
+define(IC,999999)
+
+# a few special marker nodes that restrict optimization scope
+define(NONOPTIMIZABLE,1999999)
+
+# different subranges of constant types
+%range lit 0 63;
+%range wcon -32768 32767;
+%range d16 -32768 32767;
+%range d32 -2147483648 2147483647;
+
+# Valid register numbers.  These specify subsets of the RegSet
+%range regno 0 24;
+%range fregno 25 28;
+%range loregno 29 29;
+%range hiregno 30 30;
+%range fccreg 31 31;		# floating point condition code
+%range rregno 0 0;		# result register; this is goofy but needed
+%range frregno 25 25;
+
+%terminal term;
+
+lab    = term;
+
+id     = term, term, l
+       | term, global(term), l
+       | lab
+       ;
+
+addop  = "+", add | "-", sub;
+
+# numeric constants and address constants
+ncon   = "%term%addop%ncon", addop(term,ncon,l)
+       | term;
+
+# for assembly assume identifier evals to an address constant
+acon   = "%id%addop%ncon", addop(id,ncon,l)
+       | "%id+%ncon", add(ncon,id,l)
+       | id
+       | term
+       ;
+
+# constants
+Dcon  = "0D%term",double(term,d),d;
+
+con    = acon, acon, l, costs(4,0)
+       | Dcon
+       ;
+
+# different types
+t      = b, b, b | w, w, w | l, l, l | f, f, f | d, d, d;
+size   = X, 1, b | X, 2, w | X, 4, lf | X, 8, d;
+
+# valid registers
+reg    = fp, fp, wl
+       | sp, sp, wl
+       | "%regno", r(regno,4), bwl
+       ;
+
+# Valid address formats.
+inx	= "%d16(%reg)", add(d16,reg,l)
+	| "0(%reg)", reg
+	| id, id;
+
+# Contents of memory at an address
+mem	= inx, m(inx,l,size), deref(size);
+
+
+addr    = inx
+	| acon
+	| "%acon(%reg)", add(acon,reg,l)
+	;
+
+# the result comes always in a register
+freg   = fregno, f(fregno,size), fd;
+dx = freg;
+dy = freg;
+dz = freg;
+
+z      = reg;
+
+# source registers
+x      = z | 0, 0, bwl;
+y      = x;
+
+# declare immediate
+imm    = wcon, wcon;
+
+ix     = "%regno", r(regno,4);
+iy     = "%regno", r(regno,4);
+iz     = "%regno", r(regno,4);
+ir     = "%rregno", r(rregno,4);
+fr     = "%frregno", f(frregno,4);
+dr     = "%frregno", f(frregno,8);
+
+rr     = ir | fr | dr;
+
+loreg  = "%loregno", lo(loregno,4);
+hireg   = "%hiregno",  hi(hiregno,4);
+
+ilab   = term, term;
+ap    = fp, fp, bwl;            # use the fp as an ap
+sz     = term, term;		# size of item on stack
+xlab   = term, term;
+
+#  In the interests of opcode economy, there are no gt, ge, or ne opcodes
+#  anywhere in this machine description.  Opcode economy is usually preferred
+#  over structural economy, that is, we prefer complex formulations of few 
+#  opcodes over simple formulations of many opcodes.
+
+cond = eq, eq | lt, lt | le, le;
+
+segreg = es | cs | ss | ds;
+esssds = es | ss | ds;
+
+inst =
+  "add %eb,%rb",      move(add(rb,eb,b),eb,b),    def, costs(1,2)
+| "add %ew,%rw",      move(add(rw,ew,w),ew,w),    def, costs(1,2)
+| "add al,%db",     move(add(db,al,b),al,b),    def, costs(1,3)
+| "add ax,%dw",     move(add(dw,ax,w),ax,w),    def, costs(1,3)
+| "add %eb,%db",    move(add(db,eb,b),eb,b),    def, costs(1,3)
+| "add %ew,%dw",    move(add(dw,ew,w),ew,w),    def, costs(1,3)
+
+| "and %eb,%rb",   move(and(eb,rb,b),eb,b), def, costs(1,2)
+| "and %ew,%rw",   move(and(ew,rw,w),ew,w), def, costs(1,2)
+| "and %rb,%eb",   move(and(eb,rb,b),rb,b), def, costs(1,2)
+| "and %rw,%ew",   move(and(ew,rw,w),ew,w), def, costs(1,2)
+| "and al,%db",   move(and(db,al,b),al,b), def, costs(1,3)
+| "and ax,%dw",   move(and(dw,ax,w),ax,w), def, costs(1,3)
+| "and %eb,%db",   move(and(db,eb,b),eb,b), def, costs(1,3)
+| "and %ew,%dw",   move(and(dw,ew,w),ew,w), def, costs(1,3)
+
+| "call %lab",        move(call(global(lab),l,0,t),rr,t), deref(t,rr), 1, Call
+| "cbw",              move(cvt(al,b,w),ax,w), def, costs(1,2)
+| "cwd",              move(cvt(ax,w,l),axdx,l), def, costs(1,2)
+| "dec %eb",          move(sub(eb,1,b),eb,b),   def, costs(1,2)
+| "dec %ew",          move(sub(ew,1,w),ew,w),   def, costs(1,2)
+| "dec %rw",          move(sub(rw,1,w),rw,w),   def, costs(1,2)
+| "div %eb",          move(udiv(ax,cvt(ea,b,w),w),ax), def, costs(1,14)
+| "div %ew",          move(udiv(axdx,cvt(eq,w,l),w),axdx,w), def, costs(1,4)
+| "cmp al,%db",       move(test(al,db,b),cc,b), def, costs(1,3)
+| "idiv %eb",         move(div(ax,cvt(ea,b,w),w),axdx), def, costs(1,4)
+| "idiv %ew",         move(div(axdx,cvt(ea,w,l),w),axdx), def, costs(1,4)
+| "imul %eb",         move(mul(al,ea,b),ax,b), def, costs(1,24)
+| "imul %ew",         move(mul(ax,ea,w),ax,w), def, costs(1,24)
+| "imul %rw,%db",     move(mul(rw,db,b),rw,b), def, costs(1,24)
+| "imul %rw,%ew,%dw", move(mul(ew,db,w),rw,w), def, costs(1,21)
+| "imul %rw,%ew,%db", move(mul(ew,db,b),rw,b), def, costs(1,21)
+
+| "ja %lab",         jump(if(not(cc,le,unsigned,b),b),lab,l), def, costs(2,3)
+| "jae %lab",        jump(if(not(cc,lt,unsigned,b),b),lab,l), def, costs(2,3)
+| "jb %lab",         jump(if(cc,lt,unsigned,b),lab,l), def, costs(2,3)
+| "jbe %lab",        jump(if(cc,le,unsigned,b),lab,l), def, costs(2,3)
+
+| "jg %lab",         jump(if(not(cc,le,signed,b),b),lab,l), def, costs(2,3)
+| "jge %lab",        jump(if(not(cc,lt,signed,b),b),lab,l), def, costs(2,3)
+| "jl %lab",         jump(if(cc,lt,signed,b),lab,l), def, costs(2,3)
+| "jle %lab",        jump(if(cc,le,signed,b),lab,l), def, costs(2,3)
+
+| "jeq %lab",        jump(if(cc,eq,signed,b),lab,l), def, costs(2,3)
+| "jne %lab",        jump(if(not(cc,eq,signed,b),b),lab,l), def, costs(2,3)
+#| "lds %rw,%ed"
+#| "les %rw,%ed"
+| "lea %rw,%m",        move(m,rw,w), def, costs(2,3)
+#| "leave",          ,, def, costs(1,5)
+#| "loop %cb",
+#| "loope %cb,
+#| "loopne %cb",
+#| "loopnz %cb",
+#| "loopz %cb",
+
+| "mov %eb,%rb",     move(eb,rb,b), def, costs(2,3)
+| "mov %ew,%rw",     move(ew,rw,w), def, costs(2,3)
+| "mov %rb,%eb",     move(rb,eb,b), def, costs(2,3)
+| "mov %rw,%ew",     move(rw,ew,b), def, costs(2,3)
+
+| "mov %ew,%segreg",     move(ew,segreg,w), def, costs(2,3)
+
+| "mov %esssds,%rw",     move(rw,esssds,w), def, costs(2,17)
+| "mov %esssds,%mw",     move(mw,esssds,w), def, costs(2,19)
+
+| "mov %al,%xb",     move(xb,al,b), def, costs(2,5)
+| "mov %ax,%xb",     move(ax,xb,w), def, costs(2,5)
+| "mov %xb,%al",     move(al,xb,b), def, costs(2,5)
+| "mov %xb,%ax",     move(ax,xb,w), def, costs(2,5)
+
+| "mov %rb,%db",     move(db,rb,b), def, costs(2,2)
+| "mov %rw,%dw",     move(dw,rw,w), def, costs(2,2)
+| "mov %eb,%db",     move(db,eb,b), def, costs(2,3)
+| "mov %ew,%dw",     move(dw,ew,w), def, costs(2,3)
+
+| "mul %eb",         move(mul(al,eb,b),al,b), def, costs(2,16)
+| "mul %ew",         move(mul(ax,ew,w),ax,w), def, costs(2,21)
+| "neg %eb",         move(sub(0,eb,b),eb,b),  def, costs(2,2)
+| "neg %ew",         move(sub(0,ew,w),ew,w),  def, costs(2,2)
+| "not %eb",         move(not(eb,b),eb,b),  def, costs(2,2)
+| "not %ew",         move(not(ew,w),ew,w),  def, costs(2,2)
+
+| "or %eb,%rb",      move(or(eb,rb,b),eb,b),   def, costs(2,2)
+| "or %ew,%rw",      move(or(ew,rw,w),ew,w),   def, costs(2,2)
+| "or %rb,%eb",      move(or(rb,eb,b),rb,b),   def, costs(2,2)
+| "or %rw,%ew",      move(or(rw,ew,w),rw,w),   def, costs(2,2)
+
+| "or al,%db",       move(or(db,al,b),al,b),   def, costs(2,3)
+| "or ax,%dw",       move(or(dw,ax,w),ax,w),   def, costs(2,3)
+| "or %eb,%db",      move(or(db,eb,b),eb,b),   def, costs(2,3)
+| "or %ew,%dw",      move(or(dw,ew,w),ew,w),   def, costs(2,3)
+
+#| "pop %dsesss"
+#| "pop %mw"
+#| "pop %rw"
+#| "popa"
+#| "popf"
+#| "push %segreg",
+#| "push %rw",
+#| "push %mw",
+#| "push %dw",
+#| "push %db",
+#| "pusha",
+#| "pushf",
+#| "rcl blah"
+#| "rcr blah"
+#| "rol blah"
+#| "ror blah",
+#| "ret",        ret(), def, 
+ | "sal %eb,1",          move(ash(eb,1,b),eb,b), def, costs(2,2)
+ | "sal %eb,%cl",        move(ash(eb,cl,b),eb,b), def, costs(2,9)
+ | "sal %eb,%db",        move(ash(eb,db,b),eb,b), def, costs(2,9)
+ | "sal %ew,1",          move(ash(ew,1,w),ew,w), def, costs(2,2)
+ | "sal %ew,%cl",        move(ash(ew,cl,w),ew,w), def, costs(2,9)
+ | "sal %ew,%db",        move(ash(ew,db,w),ew,w), def, costs(2,9)
+
+ | "sar %eb,1",          move(ash(eb,-1,b),eb,b), def, costs(2,2)
+ | "sar %eb,%cl",        move(ash(eb,sub(0,cl,b),b),eb,b), def, costs(2,9)
+ | "sar %eb,%db",        move(ash(eb,sub(0,db,b),b),eb,b), def, costs(2,9)
+ | "sar %ew,1",          move(ash(ew,-1,w),ew,w), def, costs(2,2)
+ | "sar %ew,%cl",        move(ash(ew,sub(0,cl,b),w),ew,w), def, costs(2,9)
+ | "sar %ew,%db",        move(ash(ew,sub(0,db,b),w),ew,w), def, costs(2,9)
+
+ | "shr %eb,1",    move(bitfld(eb,1,7,b),eb,b), def, costs(2,2)
+ | "shr %eb,%cl",  move(bitfld(eb,cl,sub(8,cl,b),b),eb,b), def, costs(2,9)
+ | "shr %eb,%db",  move(bitfld(eb,db,sub(8,db,b),b),eb,b), def, costs(2,9)
+ | "shr %ew,1",    move(bitfld(ew,1,15,w),ew,w), def, costs(2,2)
+ | "shr %ew,%cl",  move(bitfld(ew,cl,sub(16,cl,w),w),ew,w), def, costs(2,9)
+ | "shr %ew,%db",  move(bitfld(eb,db,sub(16,db,w),w),eb,w), def, costs(2,9)
+
+| "sub %eb,%rb",   move(sub(eb,rb,b),eb,b), def, costs(1,2)
+| "sub %ew,%rw",   move(sub(ew,rw,w),ew,w), def, costs(1,2)
+| "sub %rb,%eb",   move(sub(eb,rb,b),rb,b), def, costs(1,2)
+| "sub %rw,%ew",   move(sub(ew,rw,w),ew,w), def, costs(1,2)
+| "sub al,%db",   move(sub(db,al,b),al,b), def, costs(1,3)
+| "sub ax,%dw",   move(sub(dw,ax,w),ax,w), def, costs(1,3)
+| "sub %eb,%db",   move(sub(db,eb,b),eb,b), def, costs(1,3)
+| "sub %ew,%dw",   move(sub(dw,ew,w),ew,w), def, costs(1,3)
+
+| "test %eb,%rb",   move(code(and(eb,rb,b),0,b),cc,b), def, costs(1,2)
+| "test %ew,%rw",   move(code(and(ew,rw,w),0,w),cc,b), def, costs(1,2)
+| "test %rb,%eb",   move(code(and(eb,rb,b),0,b),cc,b), def, costs(1,2)
+| "test %rw,%ew",   move(code(and(ew,rw,w),0,w),cc,b), def, costs(1,2)
+| "test al,%db",   move(code(and(db,al,b),0,b),cc,b), def, costs(1,3)
+| "test ax,%dw",   move(code(and(dw,ax,w),0,w),cc,b), def, costs(1,3)
+| "test %eb,%db",   move(code(and(db,eb,b),0,b),cc,b), def, costs(1,3)
+| "test %ew,%dw",   move(code(and(dw,ew,w),0,w),cc,b), def, costs(1,3)
+
+#| "xchg"
+| "xlat",          move(m(add(ucvt(al,b,l),dsbx,l),l,1),al,b)
+
+| "xor %eb,%rb",      move(xor(eb,rb,b),eb,b),   def, costs(2,2)
+| "xor %ew,%rw",      move(xor(ew,rw,w),ew,w),   def, costs(2,2)
+| "xor %rb,%eb",      move(xor(rb,eb,b),rb,b),   def, costs(2,2)
+| "xor %rw,%ew",      move(xor(rw,ew,w),rw,w),   def, costs(2,2)
+
+| "xor al,%db",       move(xor(db,al,b),al,b),   def, costs(2,3)
+| "xor ax,%dw",       move(xor(dw,ax,w),ax,w),   def, costs(2,3)
+| "xor %eb,%db",      move(xor(db,eb,b),eb,b),   def, costs(2,3)
+| "xor %ew,%dw",      move(xor(dw,ew,w),ew,w),   def, costs(2,3)
+
+ | `"# jump to return"', ret(),   def, costs(1,0)
+ | "%lab:",              label(lab)
+
+
+# Intermediate Instructions.  High costs so they will get optimized out.
+# This section can be copied to a retarget with minimal changes.
+
+   | "ADDD %dx,%dy",       move(add(dx,dy,d),dz,d), d, IC
+   | "ADDF %dx,%dy",       move(add(dx,dy,f),dz,f), f, IC
+   | "ADDI %ix,%iy",         move(add(ix,iy,l),iz,l), l, IC
+   | "ADDP %ix,%iy",         move(add(ix,iy,l),iz,l), l, IC
+   | "ADDRFP",               move(add(term,ap,l),iz,l), l, IC
+   | "ADDRGP",               move(global(term),iz,l), l, IC
+   | "ADDRLP %term",         move(add(term,fp,l),iz,l), l, IC
+   | "ADDU %ix,%iy",         move(add(ix,iy,l),iz,l), l, IC
+
+   | "ARGB %sz,%con,%ix",    pushblock(ix,l), def, NONOPTIMIZABLE
+   | "ARGD %sz,%con,%dx",   move(dx,m(add(con,sp,l),l,8),d), def, IC
+   | "ARGF %sz,%con,%dx",   move(dx,m(add(con,sp,l),l,4),f), def, IC
+   | "ARGI %sz,%con,%ix",    move(ix,m(add(con,sp,l),l,4),l), def, IC
+   | "ARGP %sz,%con,%ix",    move(ix,m(add(con,sp,l),l,4),l), def, IC
+   | "ARGU %sz,%con,%ix",    move(ix,m(add(con,sp,l),l,4),l), def, IC
+#
+#  Structure assignment operators are implemented by hard code in
+#  the gen.c file.  They are not presently pattern-matched.
+#
+   | "ASGNB %ix,%iy",        memcpy(ix,iy,ilab), def, NONOPTIMIZABLE
+   | "ASGNC %ix,%iy",        move(iy,m(ix,l,1),b), b, IC
+   | "ASGND %ix,%dy",       move(dy,m(ix,l,8),d), d, IC
+   | "ASGNF %ix,%dy",       move(dy,m(ix,l,4),f), f, IC
+   | "ASGNI %ix,%iy",        move(iy,m(ix,l,4),l), l, IC
+   | "ASGNP %ix,%iy",        move(iy,m(ix,l,4),l), l, IC
+   | "ASGNS %ix,%iy",        move(iy,m(ix,l,2),w), w, IC
+   | "BANDU %ix,%iy",        move(and(not(not(ix,l),l),iy,l),iz,l), l, IC
+   | "BCOMU %ix",            move(not(ix,l),iz,l), l, IC
+   | "BORU %ix,%iy",         move(or(ix,iy,l),iz,l), l, IC
+   | "BXORU %ix,%iy",        move(xor(ix,iy,l),iz,l), l, IC
+
+   | "CALLB %ix,%iy",        memcpy(call(ix,l,0,l),iy,ilab), deref(), IC, Call
+   | "CALLD %ix",            move(call(ix,l,0,d),dr,d), deref(dr,d), IC, Call
+   | "CALLF %ix",            move(call(ix,l,0,f),fr,f), deref(fr,d), IC, Call
+   | "CALLI %ix",            move(call(ix,l,0,l),ir,l), deref(ir,l), IC, Call
+   | "CALLV %ix",            call(ix,l,0,l), l, IC, Call
+
+   | "CNSTC",                move(xlab,iz,l), def, IC
+   | "CNSTD",                move(xlab,iz,d), def, IC
+   | "CNSTF",                move(xlab,iz,f), def, IC
+   | "CNSTI",                move(xlab,iz,l), def, IC 
+   | "CNSTP",                move(xlab,iz,l), def, IC
+   | "CNSTS",                move(xlab,iz,l), def, IC 
+   | "CNSTU",                move(xlab,iz,l), def, IC
+
+   | "CVCI %ix",             move(cvt(ix,b,l),iz,l), deref(iz,l), IC
+   | "CVCU %ix",             move(ucvt(ix,b,l),iz,l), deref(iz,l), IC
+   | "CVDF %dx",             move(cvt(dx,d,f),fz,f), deref(fz,f), IC
+   | "CVDI %dx",             move(cvt(dx,d,l),iz,l), deref(iz,l), IC
+   | "CVFD %fx",             move(cvt(fx,f,d),dz,d), deref(dz,d), IC
+   | "CVIC %ix",             move(cvt(ix,l,b),iz,b), deref(iz,b), IC
+   | "CVID %ix",             move(cvt(ix,l,d),dz,d), deref(dz,d), IC
+   | "CVIS %ix",             move(cvt(ix,l,w),iz,w), deref(iz,w), IC
+   | "CVIU %ix",             move(ix,iz,l), l, IC
+   | "CVPU %ix",             move(ix,iz,l), l, IC
+   | "CVSI %ix",             move(cvt(ix,w,l),iz,l), deref(iz,l), IC
+   | "CVSU %ix",             move(ucvt(ix,w,l),iz,l), deref(iz,l), IC
+   | "CVUC %ix",             move(cvt(ix,l,b),iz,b), deref(iz,b), IC
+   | "CVUI %ix",             move(ix,iz,l), l, IC
+   | "CVUP %ix",             move(ix,iz,l), l, IC
+   | "CVUS %ix",             move(cvt(ix,l,w),iz,w), deref(iz,w), IC
+
+   | "DIVD %dx,%dy",      move(div(dx,dy,d),dz,d), d, IC
+   | "DIVF %dx,%dy",      move(div(dx,dy,f),dz,f), f, IC
+   | "DIVI %ix,%iy",      move(div(ix,iy,l),iz,l), l, IC
+   | "DIVU %ix,%iy",      move(udiv(ix,iy,l),iz,l), l, IC
+
+   | "EQD %dx,%dy",       jump(if(code(dx,dy,d),eq,signed,b),ilab,l), def, IC
+   | "EQF %dx,%dy",       jump(if(code(dx,dy,f),eq,signed,b),ilab,l), def, IC
+   | "EQI %ix,%iy",       jump(if(code(ix,iy,l),eq,signed,b),ilab,l), def, IC
+   | "EQU %ix,%iy",       jump(if(code(ix,iy,l),eq,signed,b),ilab,l), def, IC
+
+   | "GED %dx,%dy",       jump(if(code(dy,dx,d),lt,signed,b),ilab,l), def, IC
+   | "GEF %dx,%dy",       jump(if(code(dy,dx,f),lt,signed,b),ilab,l), def, IC
+   | "GEI %ix,%iy",       jump(if(code(iy,ix,l),lt,signed,b),ilab,l), def, IC
+   | "GEU %ix,%iy",       jump(if(code(iy,ix,l),lt,unsigned,b),ilab,l), def, IC
+
+   | "GTD %dx,%dy",       jump(if(code(dy,dx,d),le,signed,b),ilab,l), def, IC
+   | "GTF %dx,%dy",       jump(if(code(dy,dx,f),le,signed,b),ilab,l), def, IC
+   | "GTI %ix,%iy",       jump(if(code(iy,ix,l),le,signed,b),ilab,l), def, IC
+   | "GTU %ix,%iy",       jump(if(code(iy,ix,l),le,unsigned,b),ilab,l), def, IC
+
+   | "INDIRB %ix",        move(ix,iy,l), def, NONOPTIMIZABLE
+   | "INDIRC %ix",        move(m(ix,l,1),iz,b), def, IC
+   | "INDIRD %ix",        move(m(ix,l,8),dz,d), d, IC
+   | "INDIRF %ix",        move(m(ix,l,4),dz,f), f, IC
+   | "INDIRI %ix",        move(m(ix,l,4),iz,l), def, IC
+   | "INDIRP %ix",        move(m(ix,l,4),iz,l), def, IC
+   | "INDIRS %ix",        move(m(ix,l,2),iz,w), def, IC
+
+   | "JUMPV %ix",         jump(true,ix,l), l, IC
+   | "LABELV",            label(term), def, IC
+
+   | "LED %dx,%dy",       jump(if(code(dx,dy,d),le,signed,b),ilab,l), def, IC
+   | "LEF %dx,%dy",       jump(if(code(dx,dy,f),le,signed,b),ilab,l), def, IC
+   | "LEI %ix,%iy",       jump(if(code(ix,iy,l),le,signed,b),ilab,l), def, IC
+   | "LEU %ix,%iy",       jump(if(code(ix,iy,l),le,unsigned,b),ilab,l), def, IC
+#
+#  The front end inserts LOAD opcodes in between nodes that it doesn't want
+#  combined.  Following are not pattern-matched.  The patterns appear here
+#  in order to derive reasonable signatures.
+#
+   | "LOADB %iz",        move(iz,iz,l), l, NONOPTIMIZABLE
+   | "LOADC %iz",        move(iz,iz,l), l, NONOPTIMIZABLE
+   | "LOADD %dz",        move(dz,dz,d), d, NONOPTIMIZABLE
+   | "LOADF %dz",        move(dz,dz,f), f, NONOPTIMIZABLE
+   | "LOADI %iz",        move(iz,iz,l), l, NONOPTIMIZABLE 
+   | "LOADP %iz",        move(iz,iz,l), l, NONOPTIMIZABLE 
+   | "LOADS %iz",        move(iz,iz,l), l, NONOPTIMIZABLE
+   | "LOADU %iz",        move(iz,iz,l), l, NONOPTIMIZABLE
+
+   | "LTD %dx,%dy",      jump(if(code(dx,dy,d),lt,signed,b),ilab,l), def, IC
+   | "LTF %dx,%dy",      jump(if(code(dx,dy,f),lt,signed,b),ilab,l), def, IC
+   | "LTI %ix,%iy",      jump(if(code(ix,iy,l),lt,signed,b),ilab,l), def, IC
+   | "LTU %ix,%iy",      jump(if(code(ix,iy,l),lt,unsigned,b),ilab,l), def, IC
+
+   | "MODI %ix,%iy",     move(sub(ix,mul(div(ix,iy,l),iy,l),l),iz,l), l, IC
+   | "MODU %ix,%iy",     move(sub(ix,mul(div(ix,iy,u),iy,u),l),iz,l), l, IC
+
+   | "MULD %ix,%iy",     move(mul(dx,dy,d),dz,d), d, IC
+   | "MULF %ix,%iy",     move(mul(dx,dy,f),dz,f), f, IC
+   | "MULI %ix,%iy",     move(mul(ix,iy,l),iz,l), l, IC
+   | "MULU %ix,%iy",     move(mul(ix,iy,u),iz,l), l, IC
+
+   | "NED %dx,%dy",      jump(if(code(dx,dy,d),eq,signed,b),ilab,l), d, IC
+   | "NEF %dx,%dy",      jump(if(code(dx,dy,f),eq,signed,b),ilab,l), f, IC
+
+   | "NEGD %dx",         move(sub(0,dx,d),dz,d), d, IC
+   | "NEGF %dx",         move(sub(0,dx,f),dz,f), f, IC
+   | "NEGI %ix",         move(sub(0,ix,l),iz,l), l, IC
+
+   | "NEI %ix,%iy",      jump(if(code(ix,iy,l),ne,signed,b),ilab,l), def, IC
+   | "NEU %ix,%iy",      jump(if(code(ix,iy,l),ne,signed,b),ilab,l), def, IC
+   | "RETD %dx",         ret(dx,d), d, IC
+   | "RETF %dx",         ret(dx,f), f, IC
+   | "RETI %ix",         ret(ix,l), l, IC
+   | "RETV",             ret(), l, IC
+
+   | "RSHI %ix,%iy",     move(ash(ix,sub(0,iy,l),l),iz,l), l, IC
+   | "RSHU %ix,%iy",     move(bitfld(ix,iy,sub(32,iy,l),l),iz,l), l, IC
+
+   | "SUBD %dx,%dy",     move(sub(dx,dy,d),dz,d), d, IC
+   | "SUBF %dx,%dy",     move(sub(dx,dy,f),dz,f), f, IC
+   | "SUBI %ix,%iy",     move(sub(ix,iy,l),iz,l), l, IC
+   | "SUBP %ix,%iy",     move(sub(ix,iy,l),iz,l), l, IC
+   | "SUBU %ix,%iy",     move(sub(ix,iy,l),iz,l), l, IC
+#  End of Intermediate Code Definitions
+   ;
+

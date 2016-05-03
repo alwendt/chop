@@ -1,0 +1,11 @@
+
+echo $1: 1>&2
+cd tst
+cc -E -I../../include/vax_bsd ../../tst/$1.c | ../rcc >$1.s 2>$1.2
+sed 's|/tst|/../tst|g' $1.2 | diff ../../tst/$1.2 -
+if [ ! -r $1.s.bak ]; then
+	mv $1.s $1.s.bak
+	cp $1.s.bak $1.s
+else diff $1.s.bak $1.s
+fi
+exit 0

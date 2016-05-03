@@ -1,0 +1,85 @@
+RELEASE NOTES FOR CHOP RELEASE 0.65
+
+This is basically the system as described in the 1990 PDLI conference paper,
+except that the code generator has picked up another factor of two in speed.
+In addition, I've replaced pcc with the lcc front end which itself is about
+5 times faster than pcc.
+
+The VAX and 32K code generators are mostly working.
+No adaptations have been performed on the 68k code generator.
+
+If you do not have the Icon programming language installed, you will need
+to do that.  Contact icon-project@cs.arizona.edu
+
+Then you should be ready to run the test suite.
+
+Run the test suite for the VAX before doing anything else.  There are
+directories labelled chop, chop0, chop1, and cchop.  chop0, chop1, and
+cchop contain files specific to those programs (learning system,
+production system, and compiler-compiler).  The subdirectory chop
+contains files common to one or more.  First build chop0 by going into
+its directory and saying "make chop0".  Then compile something trivial
+like "f(i++)" to test the build.  Then run "make testsuite0" to really test it.
+
+Go to the chop1 subdirectory and execute "make chop1" or "make chop1t" for
+a version that dumps some trace output.
+
+Note:  I had to make a few small changes to the lcc front end outside of
+gen.c.  In particular, the files expr.c and dag.c were changed slightly;
+a function (load) was added to expr.c; it splices the unused intermediate
+code LOAD in between nodes that should not be combined.  The file allocate.c
+used to be contained inside trees.c; they were split apart so that the
+compiler-compiler could use the allocation functions without dragging in
+everything that the tree-oriented functions needed (everything).
+The definition of MAXOP in ops.h was erroneous and has been fixed.
+A few function prototypes have been deleted from c.h.  The definition of
+yyalloc in c.h did not align structures containing double properly on the
+SPARC and has been fixed.
+
+TEST STATUS
+
+This system compiles and runs all of the programs in the chop/test subdirectory
+on the VAX and 32K, except for ptx, which uses mktemp on a read-only string;
+and spill, which generates a spill inside a conditional expression.
+I have not yet decided on the fix for this problem; I don't really understand
+what the front end does for this case.
+The 68020 target have not been reworked for the lcc front end yet.
+
+Alan Wendt
+
+Contributors:   Apple Computer
+		Charles Clarke
+		Chris Fraser
+		Dave Hanson
+		Bhanu Shankar
+
+
+Newsgroups: comp.compilers
+Subject: Chop Available for FTP
+Summary: 
+Followup-To: 
+Distribution: world
+Organization: Colorado State University, Computer Science Department
+Keywords: 
+
+The source code for the chop fast automatically-generated code
+generator system is now available for anonymous ftp.  Chop is
+described in "Fast Code Generation Using Automatically-Generated
+Decision Trees", ACM SIGPLAN '90 PLDI, and other publications
+cited there.
+
+The current revision, 0.6, is interfaced with Fraser and Hanson's
+lcc front end.  The result is a highly fast C compiler with good
+code selection and no global optimization.
+
+Project Status:  Chop compiles and runs a number of small test programs
+on the Vax.  I'm currently updating the NS32k and 68K retargets for
+lcc compatibility.  After I get them working, I'll work on getting the
+system to compile itself, get struct assignments working, improve the
+code quality and compile speed, and run the SPEC benchmarks.  That will
+be rev 1.0.  This is rev 0.6.
+
+Rev 0.6 is available by ftp from beethoven.cs.colostate.edu.
+Download the file "~ftp/pub/wendt/chop/0.6.tar.Z.
+
+Alan Wendt

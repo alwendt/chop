@@ -1,0 +1,3 @@
+#
+/bin/rm -fr cc-binaries cc-outputs chop1-assems chop1-binaries chop1-outputs dotcfiles
+/bin/rm -fr chop0-binaries chop0-outputs chop0-assems

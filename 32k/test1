@@ -1,0 +1,25 @@
+#
+
+
+/bin/rm -fr chop1-assem chop1-binaries chop1-output
+mkdir chop1-assem
+mkdir chop1-binaries
+mkdir chop1-output
+cd chop1-assem
+rcp 'brahms.cs.colostate.edu:chop/'$1'/32k/*.1.new' .
+foreach name ( * )
+	mv $name $name:r
+	end
+foreach name ( * )
+	mv $name $name:r.s
+	end
+foreach name ( * )
+	cc -o $name:r $name
+	mv $name:r ../chop1-binaries
+	end
+
+cd ../chop1-binaries
+foreach name ( * )
+	echo running $name
+	$name < /etc/passwd > ../chop1-output/$name
+	end

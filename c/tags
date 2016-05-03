@@ -1,0 +1,287 @@
+Mmain	main.c	/^int main(argc, argv) char *argv[]; {$/
+acaller	profio.c	/^static void acaller(caller, file, x, y, count, cal/
+add	simp.c	/^static int add(x, y, min, max, needconst) double x/
+addlocal	dag.c	/^void addlocal(p) Symbol p; {$/
+addnode	enode.c	/^static Tree addnode(op, l, r) Tree l, r; {$/
+addrnode	simp.c	/^static Tree addrnode(p, n, ty) Symbol p; Type ty; /
+addrof	expr.c	/^Tree addrof(p) Tree p; {$/
+afunction	profio.c	/^static struct func *afunction(name, file, x, y, co/
+allocate	allocate.c	/^char *allocate(n, p) Arena *p; {$/
+andnode	enode.c	/^static Tree andnode(op, l, r) Tree l, r; {$/
+apoint	profio.c	/^static void apoint(i, file, x, y, count) char *fil/
+append	string.c	/^List append(x, list) Generic x; List list; {$/
+appendstr	main.c	/^static void appendstr(str) char *str; {$/
+array	types.c	/^Type array(ty, n, a) Type ty; {$/
+asgn	expr.c	/^Tree asgn(p, e) Symbol p; Tree e; {$/
+asgnnode	enode.c	/^Tree asgnnode(op, l, r, protect) Tree l, r; {$/
+asmargs	lex.c	/^static char *asmargs(p, argv, size) Symbol p, argv/
+assem	lex.c	/^static void assem() {$/
+assign	expr.c	/^Type assign(xty, p) Type xty; Tree p; {$/
+atop	types.c	/^Type atop(ty) Type ty; {$/
+backslash	lex.c	/^static int backslash(q) {$/
+bbcall	main.c	/^Tree bbcall(src) Coordinate src; {$/
+bbentry	main.c	/^Tree bbentry() {$/
+bbexit	main.c	/^Tree bbexit() {$/
+bbfile	main.c	/^static int bbfile(file) char *file; {$/
+bbfuncs	main.c	/^void bbfuncs(name, src) char *name; Coordinate src/
+bbincr	main.c	/^Tree bbincr(src) Coordinate src; {$/
+bbsetup	main.c	/^static void bbsetup() {$/
+bbvars	main.c	/^static void bbvars(n) {$/
+binary	expr.c	/^Type binary(xty, yty) Type xty, yty; {$/
+bitnode	enode.c	/^Tree bitnode(op, l, r) Tree l, r; {$/
+branch	stmt.c	/^static void branch(lab) {$/
+call	expr.c	/^static Tree call(f, fty, src) Tree f; Type fty; Co/
+callnode	enode.c	/^Tree callnode(f, ty, args) Tree f, args; Type ty; /
+caselabel	stmt.c	/^static void caselabel(swp, val, lab) struct swtch /
+cast	expr.c	/^Tree cast(p, type) Tree p; Type type; {$/
+cfoldcnst	simp.c	/^#define cfoldcnst(TYPE,VAR,OP,RTYPE) \\$/
+check	types.c	/^static Field check(ty, top, inherited, off) Type t/
+checkfields	types.c	/^void checkfields(ty) Type ty; {$/
+checklab	decl.c	/^static void checklab(p) Symbol p; {$/
+checkproto	types.c	/^void checkproto(ty) Type ty; {$/
+checkref	decl.c	/^static void checkref(p) Symbol p; {$/
+cmp	stmt.c	/^static void cmp(op, p, n, lab) Symbol p; {$/
+cmpnode	enode.c	/^static Tree cmpnode(op, l, r) Tree l, r; {$/
+code	dag.c	/^Code code(kind) {$/
+commute	simp.c	/^#define commute(L,R) \\$/
+compare	profio.c	/^static int compare(a, b) struct count *a, *b; {$/
+compatible	enode.c	/^static int compatible(ty1, ty2) Type ty1, ty2; {$/
+compile	main.c	/^static void compile(str) char *str; {$/
+composite	types.c	/^Type composite(ty1, ty2) Type ty1, ty2; {$/
+compound	decl.c	/^void compound(loop, swp, lev) struct swtch *swp; {/
+cond	expr.c	/^Tree cond(p) Tree p; {$/
+conditional	expr.c	/^Tree conditional(tok) {$/
+condnode	enode.c	/^Tree condnode(e, l, r) Tree e, l, r; {$/
+constant	sym.c	/^Symbol constant(ty, v) Type ty; Value v; {$/
+constexpr	expr.c	/^Tree constexpr(tok) {$/
+constnode	enode.c	/^Tree constnode(n, ty) unsigned n; Type ty; {$/
+cvtcnst	simp.c	/^#define cvtcnst(FTYPE,TTYPE,EXP) \\$/
+cvtconst	tree.c	/^Tree cvtconst(p) Tree p; {$/
+dagnode	dag.c	/^static struct dag *dagnode(op, l, r, sym) Node l, /
+dclglobal	decl.c	/^static Symbol dclglobal(class, id, ty, pos) char */
+dcllocal	decl.c	/^static Symbol dcllocal(class, id, ty, pos) char *i/
+dclparam	decl.c	/^static Symbol dclparam(class, id, ty, pos) char *i/
+dclproto	dag.c	/^dclproto(static struct dag *dagnode,(int, Node, No/
+dclr	decl.c	/^static Type dclr(basety, id, lev) Type basety; cha/
+dclr1	decl.c	/^static Type dclr1(id, lev) char **id; {$/
+deallocate	allocate.c	/^void deallocate(p) Arena *p; {$/
+decl	decl.c	/^static void decl(dcl, eflag) dclproto(Symbol (*dcl/
+defglobal	init.c	/^void defglobal(p, seg) Symbol p; {$/
+definelab	stmt.c	/^void definelab(lab) {$/
+definept	stmt.c	/^Code definept(p) Coordinate *p; {$/
+defpointer	init.c	/^void defpointer(p) Symbol p; {$/
+deftype	types.c	/^Symbol deftype(name, ty, pos) char *name; Type ty;/
+den	stmt.c	/^#define den(k,n) ((float)(k-buckets[n]+1)\/(float)(/
+deref	types.c	/^Type deref(ty) Type ty; {$/
+div	simp.c	/^static int div(x, y, min, max, needconst) double x/
+doargs	main.c	/^static int doargs(argc, argv) char *argv[]; {$/
+doconst	init.c	/^void doconst(p) Symbol p; {$/
+doextern	decl.c	/^static void doextern(p) Symbol p;  {$/
+doglobal	decl.c	/^static void doglobal(p) Symbol p; {$/
+dostmt	stmt.c	/^static void dostmt(lab, swp, lev) struct swtch *sw/
+emitYYnull	main.c	/^static void emitYYnull() {$/
+emitcode	dag.c	/^void emitcode() {$/
+enterscope	sym.c	/^void enterscope() {$/
+enumdecl	decl.c	/^static Type enumdecl() {$/
+eqnode	enode.c	/^Tree eqnode(op, l, r) Tree l, r; {$/
+eqtype	types.c	/^int eqtype(ty1, ty2) Type ty1, ty2; {$/
+equatelab	stmt.c	/^void equatelab(new, old) Symbol new, old; {$/
+error	error.c	/^void error(char *fmt, ...) {$/
+exitscope	sym.c	/^void exitscope() {$/
+expect	error.c	/^int expect(tok) {$/
+expr	expr.c	/^Tree expr(tok) {$/
+expr0	expr.c	/^Tree expr0(tok) {$/
+expr1	expr.c	/^Tree expr1(tok, many) {$/
+expr2	expr.c	/^static Tree expr2() {$/
+expr3	expr.c	/^static Tree expr3(k) {$/
+extends	types.c	/^Field extends(ty, fty) Type ty, fty; {$/
+fatal	error.c	/^int fatal(name, fmt, n) char *name, *fmt; {$/
+fcon	lex.c	/^static Symbol fcon() {$/
+field	expr.c	/^Tree field(p, name) Tree p; char *name; {$/
+fieldlist	types.c	/^Field fieldlist(ty) Type ty; {$/
+fieldref	types.c	/^Field fieldref(name, ty) char *name; Type ty; {$/
+fields	decl.c	/^static void fields(ty) Type ty; {$/
+fielduses	sym.c	/^void fielduses(p) Symbol p; {$/
+fillbuf	input.c	/^void fillbuf() {$/
+finalize	decl.c	/^void finalize() {$/
+findcount	profio.c	/^int findcount(file, x, y) char *file; {$/
+findfile	profio.c	/^static struct file *findfile(name) char *name; {$/
+findfunc	profio.c	/^int findfunc(name, file) char *name, *file; {$/
+findlabel	sym.c	/^Symbol findlabel(lab) {$/
+findtype	sym.c	/^Symbol findtype(ty) Type ty; {$/
+fixup	dag.c	/^static void fixup(p) Node p; {$/
+flushequ	stmt.c	/^void flushequ() {$/
+foldaddp	simp.c	/^#define foldaddp(L,R,RTYPE,VAR) \\$/
+foldcnst	simp.c	/^#define foldcnst(TYPE,VAR,OP,RTYPE) \\$/
+foldcond	stmt.c	/^static int foldcond(e1, e2) Tree e1, e2; {$/
+foreach	sym.c	/^void foreach(f, tp, lev) dclproto(void (*f),(Symbo/
+forstmt	stmt.c	/^static void forstmt(lab, swp, lev) struct swtch *s/
+fprint	output.c	/^void fprint(int f, char *fmt, ...) {$/
+freturn	types.c	/^Type freturn(ty) Type ty; {$/
+ftype	main.c	/^static Type ftype(rty, ty) Type rty, ty; {$/
+func	types.c	/^Type func(ty, proto) Type ty; Symbol proto; {$/
+funcdecl	decl.c	/^static void funcdecl(class, id, ty, pt) char *id; /
+funcname	expr.c	/^char *funcname(f) Tree f; {$/
+gather	profio.c	/^static int gather() {$/
+genasgn	init.c	/^static int genasgn(e, sp) Tree e; struct structexp/
+genchar	init.c	/^static void genchar(p, sp) Symbol p; struct struct/
+gencode	dag.c	/^void gencode(caller, callee) Symbol caller[], call/
+genconst	tree.c	/^int genconst(e, def) Tree e; {$/
+genident	sym.c	/^Symbol genident(class, ty, lev) Type ty; {$/
+genlabel	sym.c	/^int genlabel(n) {$/
+genspace	init.c	/^static void genspace(n, sp) struct structexp *sp; /
+getchr	lex.c	/^int getchr() {$/
+getd	profio.c	/^static int getd() {$/
+getstr	profio.c	/^static char *getstr() {$/
+gettok	lex.c	/^int gettok() {$/
+geu	simp.c	/^#define geu(L,R,V) \\$/
+hash	sym.c	/^#define hash(name) ((unsigned)name)$/
+haskid	dag.c	/^static int haskid(p, t) Node p, t; {$/
+hasop	tree.c	/^int hasop(p, op) Tree p; {$/
+hasproto	types.c	/^int hasproto(ty) Type ty; {$/
+icon	lex.c	/^static Symbol icon(n, overflow) unsigned n; {$/
+idempotent	simp.c	/^#define idempotent(OP) if (l->op == OP) return l->/
+identity	simp.c	/^#define identity(X,Y,TYPE,VAR,VAL) if (X->op == CN/
+idnode	expr.c	/^Tree idnode(p) Symbol p; {$/
+ifstmt	stmt.c	/^static void ifstmt(lab, loop, swp, lev) struct swt/
+incr	expr.c	/^Tree incr(op, e1, e2) Tree e1, e2; {$/
+initarray	init.c	/^static int initarray(len, ty, lev) Type ty; {$/
+initchar	init.c	/^static int initchar(len, ty) Type ty; {$/
+initfields	init.c	/^static int initfields(p, q) Field p, q; {$/
+initglobal	init.c	/^void initglobal(p, flag) Symbol p; {$/
+initializer	init.c	/^Type initializer(ty, lev) Type ty; {$/
+initstruct	init.c	/^static int initstruct(len, ty, lev) Type ty; {$/
+initvalue	init.c	/^static Tree initvalue(ty) Type ty; {$/
+inputInit	input.c	/^void inputInit(fd) {$/
+inputstring	input.c	/^void inputstring(str) char *str; {$/
+install	sym.c	/^Symbol install(name, tp, perm) char *name; Table */
+intconst	sym.c	/^Symbol intconst(n) {$/
+intexpr	expr.c	/^int intexpr(tok, n) {$/
+isfield	types.c	/^static Field isfield(name, flist) char *name; Fiel/
+ispow2	simp.c	/^static int ispow2(u) unsigned u; {$/
+jump	dag.c	/^Node jump(lab) {$/
+labelnode	dag.c	/^static Node labelnode(lab) {$/
+length	string.c	/^int length(list) List list; {$/
+list	dag.c	/^static Node list(p) Node p; {$/
+listnodes	dag.c	/^Node listnodes(tp, tlab, flab) Tree tp; {$/
+load	expr.c	/^Tree load(p) Tree p; {$/
+localaddr	stmt.c	/^static Symbol localaddr(p) Tree p; {$/
+locus	sym.c	/^void locus(tp, cp) Table tp; Coordinate *cp; {$/
+lookup	sym.c	/^Symbol lookup(name, tp) char *name; Table tp; {$/
+ltoa	string.c	/^Generic *ltoa(list, a) List list; Generic a[]; {$/
+lvalue	expr.c	/^Tree lvalue(p) Tree p; {$/
+mkstr	sym.c	/^Symbol mkstr(str) char *str; {$/
+mksymbol	sym.c	/^Symbol mksymbol(class, name, ty) char *name; Type /
+mul	simp.c	/^static int mul(x, y, min, max, needconst) double x/
+mulnode	enode.c	/^static Tree mulnode(op, l, r) Tree l, r; {$/
+newconst	sym.c	/^Symbol newconst(v, tc) Value v; {$/
+newfield	types.c	/^Field newfield(name, ty, fty) char *name; Type ty,/
+newnode	dag.c	/^Node newnode(op, l, r, sym) Node l, r; Symbol sym;/
+newstruct	types.c	/^Type newstruct(op, tag) char *tag; {$/
+newstyle	decl.c	/^static Type newstyle(ty) Type ty; {$/
+newtemp	sym.c	/^Symbol newtemp(class, tc) {$/
+nextline	input.c	/^void nextline() {$/
+ngetc	profio.c	/^#define ngetc() getc(fp)$/
+node	dag.c	/^Node node(op, l, r, sym) Node l, r; Symbol sym; {$/
+nodeid	tree.c	/^int nodeid(p) Tree p; {$/
+nullcheck	expr.c	/^static Tree nullcheck(p) Tree p; {$/
+oldparam	decl.c	/^static void oldparam(p) Symbol p; {$/
+oldstyle	decl.c	/^static Type oldstyle(name, ty) char *name; Type ty/
+opindex	dag.c	/^	return opindex(op) > 0 && opindex(op) < sizeof op/
+opname	tree.c	/^char *opname(op) {$/
+outflush	output.c	/^void outflush() {$/
+outs	output.c	/^void outs(s) char *s; {$/
+outtype	types.c	/^void outtype(ty) Type ty; {$/
+param	decl.c	/^static Symbol param(p, list) Symbol p, list; {$/
+parameters	decl.c	/^static Symbol parameters() {$/
+pointer	expr.c	/^Tree pointer(p) Tree p; {$/
+postfix	expr.c	/^static Tree postfix(p) Tree p; {$/
+pragma	input.c	/^static void pragma() {$/
+prefix	expr.c	/^static Tree prefix() {$/
+primary	expr.c	/^static Tree primary() {$/
+print	output.c	/^void print(char *fmt, ...) {$/
+printdag	dag.c	/^void printdag(p, fd) Node p; {$/
+printdag1	dag.c	/^static void printdag1(p, fd, lev) Node p; {$/
+printdecl	types.c	/^void printdecl(p, ty) Symbol p; Type ty; {$/
+printed	tree.c	/^int *printed(id) {$/
+printnode	dag.c	/^static void printnode(p, fd, lev) Node p; {$/
+printproto	types.c	/^void printproto(p, callee) Symbol p, callee[]; {$/
+printsymbol	sym.c	/^void printsymbol(p, fd) Symbol p;{$/
+printtable	sym.c	/^void printtable(tp, lev, fd) Table tp; {$/
+printtemps	sym.c	/^void printtemps(fd) {$/
+printtoken	error.c	/^static void printtoken() {$/
+printtree	tree.c	/^void printtree(p, fd) Tree p; {$/
+printtree1	tree.c	/^static void printtree1(p, fd, lev) Tree p; {$/
+printtype	types.c	/^void printtype(ty, fd) Type ty; {$/
+process	profio.c	/^int process(file) char *file; {$/
+program	decl.c	/^void program() {$/
+promote	expr.c	/^Type promote(ty) Type ty; {$/
+ptr	types.c	/^Type ptr(ty) Type ty; {$/
+qual	types.c	/^Type qual(op, ty) Type ty; {$/
+release	sym.c	/^void release(t1) Symbol t1; {$/
+remove	dag.c	/^static void remove(p) Node p; {$/
+reset	dag.c	/^static void reset() {$/
+resynch	input.c	/^static void resynch() {$/
+retcode	stmt.c	/^void retcode(p, lab) Tree p; {$/
+retype	tree.c	/^Tree retype(p, ty) Tree p; Type ty;{$/
+rightkid	expr.c	/^static Tree rightkid(p) Tree p; {$/
+rmtemps	sym.c	/^void rmtemps(class, level) {$/
+rmtypes	types.c	/^void rmtypes() {$/
+root	tree.c	/^Tree root(p) Tree p; {$/
+rvalue	expr.c	/^Tree rvalue(p) Tree p; {$/
+setuses	sym.c	/^void setuses(tp) Table tp; {$/
+sfoldcnst	simp.c	/^#define sfoldcnst(TYPE,VAR,OP,RTYPE) \\$/
+shnode	enode.c	/^Tree shnode(op, l, r) Tree l, r; {$/
+simplify	simp.c	/^Tree simplify(op, ty, l, r) Type ty; Tree l, r; {$/
+skipto	error.c	/^void skipto(tok, set) char set[]; {$/
+statement	stmt.c	/^void statement(loop, swp, lev) struct swtch *swp; /
+stmtlabel	stmt.c	/^static void stmtlabel(label) char *label; {$/
+string	string.c	/^char *string(str) char *str; {$/
+stringd	string.c	/^char *stringd(n) {$/
+stringf	output.c	/^char *stringf(char *fmt, ...) {$/
+stringn	string.c	/^char *stringn(str, n) register char *str; {$/
+structdcl	decl.c	/^static Type structdcl(op) {$/
+structexp	init.c	/^Tree structexp(ty, t1) Type ty; Symbol t1; {$/
+sub	simp.c	/^static int sub(x, y, min, max, needconst) double x/
+subnode	enode.c	/^static Tree subnode(op, l, r) Tree l, r; {$/
+swcode	stmt.c	/^static int swcode(swp, b, lb, ub, n) struct swtch /
+swgen	stmt.c	/^static void swgen(swp) struct swtch *swp; {$/
+swstmt	stmt.c	/^static void swstmt(loop, lab, lev) {$/
+swtoseg	init.c	/^void swtoseg(seg) {$/
+table	sym.c	/^Table table(tp, lev) Table tp; {$/
+temporary	sym.c	/^Symbol temporary(class, ty) Type ty; {$/
+test	error.c	/^void test(tok, set) char set[]; {$/
+texpr	tree.c	/^Tree texpr(f, tok) dclproto(Tree (*f),(int)) {$/
+tfree	tree.c	/^void tfree() {$/
+tnode	decl.c	/^static Type tnode(op, type) Type type; {$/
+tracecall	main.c	/^void tracecall(f, callee) Symbol f, callee[]; {$/
+tracefinis	main.c	/^static void tracefinis() {$/
+tracereturn	main.c	/^void tracereturn(f, x) Symbol f, x; {$/
+tracevalue	main.c	/^static void tracevalue(e, lev) Tree e; {$/
+trash	dag.c	/^static void trash(p) Node p; {$/
+tree	tree.c	/^Tree tree(op, type, left, right) Type type; Tree l/
+ttob	types.c	/^int ttob(ty) Type ty; {$/
+tynode	types.c	/^static Type tynode(op, type, size, align, sym) Typ/
+type	decl.c	/^static Type type(lev, class) int *class; {$/
+typeInit	types.c	/^void typeInit() {$/
+typeerror	enode.c	/^void typeerror(op, l, r) Tree l, r; {$/
+typename	decl.c	/^Type typename() {$/
+typestab	dag.c	/^static void typestab(p) Symbol p; {$/
+typestring	types.c	/^char *typestring(ty, str) Type ty; char *str; {$/
+ufoldcnst	simp.c	/^#define ufoldcnst(TYPE,EXP) if (l->op == CNST+TYPE/
+undag	dag.c	/^static Node undag(nodelist) Node nodelist; {$/
+undag1	dag.c	/^static Node undag1(p, root) Node p, root; {$/
+use	sym.c	/^void use(p, src) Symbol p; Coordinate src; {$/
+valid	dag.c	/^static int valid(op) {$/
+value	expr.c	/^static Tree value(p) Tree p; {$/
+variadic	types.c	/^int variadic(ty) Type ty; {$/
+vfprint	output.c	/^void vfprint(f, fmt, ap) char *fmt; va_list ap; {$/
+visit	stmt.c	/^static void visit(p) struct equate *p; {$/
+vprint	output.c	/^void vprint(fmt, ap) char *fmt; va_list ap; {$/
+vtoa	simp.c	/^char *vtoa(ty, v) Type ty; Value v; {$/
+walk	dag.c	/^void walk(tp, tlab, flab) Tree tp; {$/
+warning	error.c	/^void warning(char *fmt, ...) {$/
+whilestmt	stmt.c	/^static void whilestmt(lab, swp, lev) struct swtch /
+xcvtcnst	simp.c	/^#define xcvtcnst(FTYPE,TTYPE,EXP,VAR,MIN,MAX) \\$/
+xfoldcnst	simp.c	/^#define xfoldcnst(TYPE,VAR,OP,RTYPE,FUNC,MIN,MAX) /
+zerofield	simp.c	/^#define zerofield(OP,TYPE,VAR) \\$/

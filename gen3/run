@@ -1,0 +1,35 @@
+
+# run test os [ remotehost ]
+
+os=$2 remotehost=${3-$REMOTEHOST}
+target=vax
+
+echo $1: 1>&2
+
+# set -x
+cd tst
+if [ ! -r "../../include/${target}_$os" ]; then
+	echo 2>&1 $0: unknown target-system combination '"'$target-$os'"'
+fi
+cc -E -I../../include/vax_$os ../../tst/$1.c | ../rcc 2>$1.2 >$1.s
+if [ $? != 0 ]; then remotehost=noexecute; fi
+sed 's|/tst|/../tst|g' $1.2 | diff ../../tst/$1.2 -
+if [ ! -r $1.s.bak ]; then
+	mv $1.s $1.s.bak
+	cp $1.s.bak $1.s
+else
+	if diff $1.s.bak $1.s; then exit 0; fi
+fi
+
+case "$remotehost" in
+noexecute)	exit 0 ;;
+"")	cc -o $1 $1.s -ll -lm; ./$1 <../../tst/$1.0 >$1.1 ;;
+*)	rcp $1.s $remotehost:
+	if expr "$remotehost" : '.*@' >/dev/null ; then
+		remotehost="`expr $remotehost : '.*@\(.*\)'` -l `expr $remotehost : '\(.*\)@'`"
+	fi
+	rsh $remotehost "cc -o $1 $1.s -ll -lm;./$1;rm $1 $1.[so]" <../../tst/$1.0 >$1.1
+	;;
+esac
+diff $1.1.bak $1.1
+exit $?

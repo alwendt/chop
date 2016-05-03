@@ -1,0 +1,7 @@
+#
+foreach target ( 32k vax )
+    setenv MACH $target
+    make -e Clean
+    ( cd chop0 ; make -e chop0 )
+    ( cd chop ; Make_testsuite0 $target )
+    end

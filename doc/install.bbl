@@ -1,0 +1,41 @@
+\begin{thebibliography}{1}
+
+\bibitem{ansi:Cstandard}
+American National Standard Institute, Inc., New York.
+\newblock {\em American National Standards for Information Systems, Programming
+  Language C {ANSI} X3.159--1989}, 1990.
+
+\bibitem{cornelius:etal:84}
+B.~J. Cornelius, I.~R. Lowman, and D.~J. Robson.
+\newblock Steady-state compilers.
+\newblock {\em Software---Practice \& Experience}, 14(8):705--709, Aug. 1984.
+
+\bibitem{fraser:sigplan89}
+C.~W. Fraser.
+\newblock A language for writing code generators.
+\newblock {\em Proceedings of the SIGPLAN '89 Conference on Programming
+  Language Design and Implementation, SIGPLAN Notices}, 24(7):238--245, July
+  1989.
+
+\bibitem{fraser:hanson:interface:TR}
+C.~W. Fraser and D.~R. Hanson.
+\newblock A code generation interface for {ANSI C}.
+\newblock Technical Report CS-TR-270-90, Princeton University, Department of
+  Computer Science, Princeton, NJ, July 1990.
+
+\bibitem{fraser:hanson:91a}
+C.~W. Fraser and D.~R. Hanson.
+\newblock A code generation interface for {ANSI} {C}.
+\newblock {\em Software---Practice \& Experience}, 21(9):963--988, Sept. 1991.
+
+\bibitem{fraser:hanson:91b}
+C.~W. Fraser and D.~R. Hanson.
+\newblock A retargetable compiler for {ANSI C}.
+\newblock {\em SIGPLAN Notices}, 26(10):29--43, Oct. 1991.
+
+\bibitem{fraser:hanson:92}
+C.~W. Fraser and D.~R. Hanson.
+\newblock Simple register spilling in a retargetable compiler.
+\newblock {\em Software---Practice \& Experience}, 22(1):85--99, Jan. 1992.
+
+\end{thebibliography}
